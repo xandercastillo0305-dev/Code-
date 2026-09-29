@@ -17,7 +17,7 @@ DEMO_USERS = [
     ("ANA-02", "Second Analyst", "analyst"),
     ("ADM-01", "System Administrator", "admin"),
 ]
-DEFAULT_PASSWORD = "demo-pass-2026"
+DEFAULT_PASSWORD = "demo1234"
 
 
 def seed(store=None, password=None):

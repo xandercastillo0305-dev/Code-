@@ -48,9 +48,9 @@ flask --app app run                  # http://127.0.0.1:5000
 
 | User ID | Role | Default password |
 |---|---|---|
-| `INV-01` | Investigator (submits cases, sees own reports) | `demo-pass-2026` |
-| `ANA-01`, `ANA-02` | Analyst (reviews cases) | `demo-pass-2026` |
-| `ADM-01` | Admin (users, evaluation page, audit log, purge) | `demo-pass-2026` |
+| `INV-01` (or `inv-01`) | Investigator (submits cases, sees own reports) | `demo1234` |
+| `ANA-01`, `ANA-02` | Analyst (reviews cases) | `demo1234` |
+| `ADM-01` | Admin (users, evaluation page, audit log, purge) | `demo1234` |
 
 Change the passwords with `python seed_users.py --password ...` (on an empty `data/users.json`)
 and set `DFHITL_SECRET_KEY` before any real use.
