@@ -1,0 +1,41 @@
+{% extends "base.html" %}{% from "_status.html" import label_badge %}
+{% block title %}Report {{ case.case_id }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 mb-0">Forensic Report — {{ report.case_id }}</h1>
+  <a class="btn btn-primary" href="{{ url_for('download_report', case_id=case.case_id) }}">Download PDF</a>
+</div>
+{% if report.untrained %}<div class="alert alert-danger fw-semibold text-center">{{ report.untrained_banner }}</div>{% endif %}
+<div class="report">
+  <h2 class="h5">I. Case Information</h2>
+  <table class="table table-sm table-bordered kv">{% for k, v in report.case_information %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endfor %}</table>
+
+  <h2 class="h5">II. Submitted Images <span class="small text-muted">(redacted: blurred face crops only)</span></h2>
+  <div class="row g-3 mb-3">
+    {% for which in ['suspect', 'reference'] %}{% set lbl, digest = report.images[loop.index0] %}
+    <div class="col-md-6"><div class="border rounded p-2 h-100">
+      <div class="small fw-semibold">{{ lbl }}</div>
+      <img class="report-thumb rounded" alt="{{ lbl }} (blurred face crop)"
+           src="{{ url_for('case_image', case_id=case.case_id, which=which, variant='face_blur') }}">
+      <div class="sha small mt-1">SHA-256: {{ digest }}</div>
+    </div></div>
+    {% endfor %}
+  </div>
+
+  <div class="card section-automated mb-3">
+    <div class="card-header"><span class="badge bg-light text-dark me-2">AUTOMATED</span>III. AI Analysis — preliminary, not a verdict</div>
+    <table class="table table-sm mb-0 kv">{% for k, v in report.ai_analysis %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endfor %}</table>
+    <div class="card-footer small text-muted">{{ report.disclaimer }}</div>
+  </div>
+
+  <div class="card section-human mb-3">
+    <div class="card-header"><span class="badge bg-light text-dark me-2">HUMAN-VERIFIED</span>IV. Human Review — forensic analyst conclusion</div>
+    <table class="table table-sm mb-0 kv">
+      {% for k, v in report.human_review %}<tr><th>{{ k }}</th><td>{% if k == 'Final classification' %}{{ label_badge(v) }}{% else %}{{ v }}{% endif %}</td></tr>{% endfor %}
+    </table>
+  </div>
+
+  <h2 class="h5">V. Sign-off</h2>
+  <table class="table table-sm table-bordered kv">{% for k, v in report.sign_off %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endfor %}</table>
+</div>
+{% endblock %}

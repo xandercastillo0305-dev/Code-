@@ -1,0 +1,6 @@
+{% macro status_badge(s) -%}
+<span class="badge status-{{ s }}">{{ s|capitalize }}</span>
+{%- endmacro %}
+{% macro label_badge(l) -%}
+{% if l %}<span class="badge label-{{ l|lower }}">{{ l }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+{%- endmacro %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}{% from "_status.html" import status_badge, label_badge %}
+{% block title %}Reviewer dashboard{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Reviewer dashboard</h1>
+<div class="row g-3 mb-4">
+  {% for key, label, cls in [('pending','Pending','warning'),('verified','Verified','success'),('flagged','Flagged','danger')] %}
+  <div class="col-6 col-md-3"><a class="text-decoration-none" href="{{ url_for('dashboard', status=key) }}">
+    <div class="card stat-card border-{{ cls }} shadow-sm"><div class="card-body">
+      <div class="small text-muted">{{ label }}</div><div class="display-6 fw-semibold text-{{ cls }}">{{ summary[key] }}</div>
+    </div></div></a></div>
+  {% endfor %}
+  <div class="col-6 col-md-3"><div class="card stat-card border-primary shadow-sm"><div class="card-body">
+    <div class="small text-muted">AI–human agreement</div>
+    <div class="display-6 fw-semibold text-primary">{% if summary.agreement_rate is not none %}{{ '%.0f'|format(summary.agreement_rate*100) }}%{% else %}n/a{% endif %}</div>
+    <div class="small text-muted">{{ summary.confirm }} confirm · {{ summary.override }} override · {{ summary.flag }} flag</div>
+  </div></div></div>
+</div>
+
+<div class="btn-group mb-3" role="group" aria-label="Filter by status">
+  <a class="btn btn-sm {{ 'btn-dark' if not status else 'btn-outline-dark' }}" href="{{ url_for('dashboard') }}">All</a>
+  {% for s in ['pending','verified','flagged'] %}
+  <a class="btn btn-sm {{ 'btn-dark' if status == s else 'btn-outline-dark' }}" href="{{ url_for('dashboard', status=s) }}">{{ s|capitalize }}</a>
+  {% endfor %}
+</div>
+
+<div class="card shadow-sm"><div class="table-responsive">
+<table class="table table-hover align-middle mb-0">
+  <thead class="table-light"><tr><th>Case ID</th><th>Submitted</th><th>Status</th><th>AI classification</th><th class="text-end">Aggregated S</th><th></th></tr></thead>
+  <tbody>
+  {% for c in cases|reverse %}
+  <tr>
+    <td class="font-monospace">{{ c.case_id }}</td>
+    <td class="small">{{ c.submitted_at }}<div class="text-muted">by {{ c.submitted_by }}</div></td>
+    <td>{{ status_badge(c.status) }}</td>
+    <td>{{ label_badge(c.ai_classification) }} <span class="small text-muted">prelim.</span></td>
+    <td class="text-end font-monospace">{{ '%.3f'|format(c.aggregated_score) }} <span class="small text-muted">/ τ {{ '%.2f'|format(c.threshold) }}</span></td>
+    <td class="text-end">
+      {% if current_user.role == 'analyst' %}
+        <a class="btn btn-sm {{ 'btn-primary' if c.status == 'pending' else 'btn-outline-secondary' }}" href="{{ url_for('review_case', case_id=c.case_id) }}">{{ 'Review' if c.status == 'pending' else 'Open' }}</a>
+      {% endif %}
+      {% if c.status != 'pending' %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('view_report', case_id=c.case_id) }}">Report</a>{% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="text-center text-muted py-4">No cases{% if status %} with status “{{ status }}”{% endif %}.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

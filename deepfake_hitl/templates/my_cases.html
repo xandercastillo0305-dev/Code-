@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% from "_status.html" import status_badge, label_badge %}
+{% block title %}My cases{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">My cases</h1>
+  <a class="btn btn-primary" href="{{ url_for('submit_case') }}">+ Submit case</a>
+</div>
+<div class="card shadow-sm"><div class="table-responsive">
+<table class="table table-hover align-middle mb-0">
+  <thead class="table-light"><tr><th>Case ID</th><th>Submitted</th><th>Status</th><th>Final classification (analyst)</th><th>Report</th></tr></thead>
+  <tbody>
+  {% for c in cases|reverse %}
+    <tr>
+      <td class="font-monospace">{{ c.case_id }}</td>
+      <td class="small">{{ c.submitted_at }}</td>
+      <td>{{ status_badge(c.status) }}</td>
+      <td>{% if c.status == 'pending' %}<span class="text-muted small">Awaiting analyst review</span>{% else %}{{ label_badge(c.final_classification) }}{% endif %}</td>
+      <td>{% if c.status != 'pending' %}
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('view_report', case_id=c.case_id) }}">View</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('download_report', case_id=c.case_id) }}">PDF</a>
+      {% else %}—{% endif %}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="text-center text-muted py-4">No cases submitted yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

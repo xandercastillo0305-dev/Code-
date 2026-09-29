@@ -1,0 +1,52 @@
+:root {
+  --forensic: #14213d;
+  --automated: #1f4e79;
+  --human: #1e6b3a;
+  --real: #1e6b3a;
+  --fake: #b00020;
+}
+body { background: #f5f6f8; }
+.bg-forensic { background: var(--forensic); }
+.untrained-banner {
+  background: var(--fake); color: #fff; text-align: center; font-weight: 700;
+  padding: .45rem 1rem; letter-spacing: .02em;
+}
+.stat-card { border-width: 0 0 0 4px !important; }
+
+/* status + label badges */
+.status-pending  { background: #f0ad00; color: #212529; }
+.status-verified { background: var(--human); }
+.status-flagged  { background: #c0392b; }
+.label-real { background: var(--real); }
+.label-deepfake { background: var(--fake); }
+.label-inconclusive { background: #6c757d; }
+
+/* AUTOMATED vs HUMAN-VERIFIED sections must look different (Appendix B) */
+.section-automated { border: 2px solid var(--automated); }
+.section-automated > .card-header { background: var(--automated); color: #fff; font-weight: 600; }
+.section-human { border: 2px solid var(--human); }
+.section-human > .card-header { background: var(--human); color: #fff; font-weight: 600; }
+
+/* evidence */
+.evidence-face { width: 100%; aspect-ratio: 1; object-fit: cover; }
+.evidence-full { width: 100%; max-height: 240px; object-fit: contain; background: #222; }
+.redacted-tag {
+  position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.7); color: #fff;
+  font-size: .7rem; font-weight: 700; padding: 2px 6px; border-radius: 3px;
+}
+.sha { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+.report-thumb { width: 160px; height: 160px; object-fit: cover; }
+
+/* metrics */
+.metric-row { margin-bottom: .6rem; }
+.metric-row .progress { height: .7rem; }
+.gauge { position: relative; height: 1.4rem; background: #e9ecef; border-radius: .3rem; margin: 1.4rem 0 .3rem; overflow: visible; }
+.gauge-fill { height: 100%; border-radius: .3rem; }
+.gauge-real { background: var(--real); }
+.gauge-fake { background: var(--fake); }
+.gauge-tau { position: absolute; top: -4px; bottom: -4px; width: 3px; background: #000; transform: translateX(-1px); }
+.gauge-tau span { position: absolute; top: -1.2rem; left: -3px; font-weight: 700; font-size: .8rem; }
+
+.report .kv th { width: 35%; background: #f8f9fa; font-weight: 600; }
+.report .section-automated .kv th { background: #e8f0f8; }
+.report .section-human .kv th { background: #e8f5ec; }

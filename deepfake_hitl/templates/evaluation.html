@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block title %}Evaluation{% endblock %}
+{% block content %}
+<h1 class="h3">Evaluation — AI vs. human agreement</h1>
+<p class="text-muted">Computed live from the case store (Section 3.7). Agreement and Cohen's κ use <b>decisive</b> reviews
+(Confirm + Override); flagged cases are Inconclusive and are counted separately.</p>
+{% macro f(v, pct=false) %}{% if v is none %}n/a{% elif pct %}{{ '%.1f'|format(v*100) }}%{% else %}{{ '%.4f'|format(v) }}{% endif %}{% endmacro %}
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="small text-muted">Agreement rate</div><div class="display-6">{{ f(summary.agreement_rate, true) }}</div></div></div></div>
+  <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="small text-muted">Cohen's κ</div><div class="display-6">{{ f(summary.cohens_kappa) }}</div></div></div></div>
+  <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="small text-muted">Strict agreement (flags = disagree)</div><div class="display-6">{{ f(summary.strict_agreement_rate, true) }}</div></div></div></div>
+  <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><div class="small text-muted">Reviewed / total</div><div class="display-6">{{ summary.reviewed }} / {{ summary.total_cases }}</div></div></div></div>
+</div>
+<table class="table table-bordered w-auto">
+  <tr><th>Confirm</th><td>{{ summary.confirm }}</td></tr>
+  <tr><th>Override</th><td>{{ summary.override }}</td></tr>
+  <tr><th>Flag</th><td>{{ summary.flag }}</td></tr>
+  <tr><th>Pending</th><td>{{ summary.pending }}</td></tr>
+  <tr><th>κ (manual formula check)</th><td>{{ f(summary.cohens_kappa_manual) }}</td></tr>
+</table>
+<p class="small text-muted">κ shows n/a when it is undefined: if the AI and the analyst both used only one and the same label, chance agreement p<sub>e</sub> = 1 and κ = 0/0.</p>
+{% endblock %}

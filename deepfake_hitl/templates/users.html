@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% block title %}Users{% endblock %}
+{% block content %}
+<h1 class="h3">User management</h1>
+<div class="row g-4">
+<div class="col-lg-7"><div class="card shadow-sm"><div class="table-responsive">
+<table class="table align-middle mb-0">
+  <thead class="table-light"><tr><th>User ID</th><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead>
+  {% for u in users %}
+  <tr><td class="font-monospace">{{ u.user_id }}</td><td>{{ u.name }}</td><td>{{ u.role|capitalize }}</td>
+    <td>{{ 'Active' if u.get('active', True) else 'Disabled' }}</td>
+    <td>{% if u.user_id != current_user.id %}
+      <form method="post" class="d-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="user_id" value="{{ u.user_id }}">
+        <button class="btn btn-sm btn-outline-{{ 'danger' if u.get('active', True) else 'success' }}" name="action" value="{{ 'disable' if u.get('active', True) else 'enable' }}">{{ 'Disable' if u.get('active', True) else 'Enable' }}</button>
+      </form>{% endif %}</td></tr>
+  {% endfor %}
+</table></div></div></div>
+<div class="col-lg-5"><div class="card shadow-sm"><div class="card-body">
+  <h2 class="h5">Add user</h2>
+  <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="create">
+    <div class="mb-2"><label class="form-label" for="nu-id">User ID</label><input class="form-control" id="nu-id" name="user_id" placeholder="ANA-03" required></div>
+    <div class="mb-2"><label class="form-label" for="nu-name">Name</label><input class="form-control" id="nu-name" name="name" required></div>
+    <div class="mb-2"><label class="form-label" for="nu-role">Role</label><select class="form-select" id="nu-role" name="role">{% for r in roles %}<option value="{{ r }}">{{ r|capitalize }}</option>{% endfor %}</select></div>
+    <div class="mb-3"><label class="form-label" for="nu-pw">Password (min 8)</label><input class="form-control" id="nu-pw" type="password" name="password" minlength="8" required></div>
+    <button class="btn btn-primary">Create user</button>
+  </form>
+</div></div></div>
+</div>
+{% endblock %}
