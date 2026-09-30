@@ -112,6 +112,7 @@ def create_app(overrides=None):
             "min_rationale": app.config["MIN_RATIONALE_LENGTH"],
             "tau": app.config["THRESHOLD_TAU"],
             "max_upload_mb": config.MAX_UPLOAD_MB,
+            "metric_weights": config.METRIC_WEIGHTS,
         }
 
     # ---- access-control helpers ------------------------------------------------

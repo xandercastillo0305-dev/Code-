@@ -2,105 +2,229 @@
 {% block title %}Review {{ case.case_id }}{% endblock %}
 {% block content %}
 {% set ai = case.ai_classification %}
-<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-  <div>
-    <a href="{{ url_for('dashboard') }}" class="small">&larr; Dashboard</a>
-    <h1 class="h3 mb-0">{{ case.case_id }} {{ status_badge(case.status) }}</h1>
-    <div class="small text-muted">Submitted {{ case.submitted_at }} by {{ case.submitted_by }}</div>
-  </div>
-  {% if case.status != 'pending' %}
-    <a class="btn btn-outline-primary" href="{{ url_for('view_report', case_id=case.case_id) }}">View forensic report</a>
-  {% endif %}
-</div>
-{% if not case.model_trained %}<div class="alert alert-danger fw-semibold py-2">{{ untrained_banner }} (model: {{ case.model_version }})</div>{% endif %}
+{% set other = opposite(ai) %}
+{% set s_pct = (case.aggregated_score * 100)|round(1) %}
+{% set tau_pct = (case.threshold * 100)|round(1) %}
 
-<div class="row g-4">
-  <!-- Evidence: face crops only by default (Appendix D redaction protocol) -->
-  <div class="col-lg-6">
-    <div class="card shadow-sm"><div class="card-header fw-semibold">Evidence <span class="small text-muted fw-normal">— aligned face crops (380×380); full images redacted</span></div>
-    <div class="card-body"><div class="row g-3">
-      {% for which in ['suspect', 'reference'] %}
-      <div class="col-6">
-        <div class="small fw-semibold text-uppercase mb-1">{{ which }}</div>
-        <img class="img-fluid rounded border evidence-face" alt="{{ which }} face crop"
-             src="{{ url_for('case_image', case_id=case.case_id, which=which, variant='face') }}">
-        <div class="mt-2 position-relative">
-          <img class="img-fluid rounded border evidence-full" id="full-{{ which }}" alt="{{ which }} full image (redacted)"
-               src="{{ url_for('case_image', case_id=case.case_id, which=which, variant='full_pixelated') }}">
-          <span class="redacted-tag" id="tag-{{ which }}">REDACTED</span>
-        </div>
-        <button type="button" class="btn btn-sm btn-outline-danger mt-2 w-100 reveal-btn" data-which="{{ which }}"
-                data-url="{{ url_for('reveal_image', case_id=case.case_id, which=which) }}">Reveal full image (logged)</button>
-        <div class="sha small text-muted mt-1" title="SHA-256">SHA-256: {{ case[which ~ '_sha256'] }}</div>
+<!-- Case header -->
+<div class="case-header card shadow-sm mb-3">
+  <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div>
+      <a href="{{ url_for('dashboard') }}" class="small text-decoration-none">&larr; Back to dashboard</a>
+      <div class="d-flex align-items-center gap-2 mt-1">
+        <h1 class="h3 mb-0 font-monospace">{{ case.case_id }}</h1>
+        {{ status_badge(case.status) }}
       </div>
-      {% endfor %}
-    </div></div></div>
-  </div>
-
-  <!-- AUTOMATED analysis -->
-  <div class="col-lg-6">
-    <div class="card shadow-sm section-automated mb-4">
-      <div class="card-header"><span class="badge bg-light text-dark me-2">AUTOMATED</span>AI-assisted preliminary analysis</div>
-      <div class="card-body">
-        <div class="d-flex align-items-center gap-3 mb-3">
-          <div><div class="small text-muted">Preliminary classification</div><div class="fs-4">{{ label_badge(ai) }}</div></div>
-          <div><div class="small text-muted">Confidence</div><div class="fs-4 font-monospace">{{ '%.1f'|format(case.confidence_score*100) }}%</div></div>
-        </div>
-        {% for key, label in [('cosine_similarity','Cosine similarity'),('euclidean_similarity','Euclidean similarity'),('ssim','SSIM (face crops)')] %}
-        <div class="metric-row">
-          <div class="d-flex justify-content-between small"><span>{{ label }}</span><span class="font-monospace">{{ '%.4f'|format(case[key]) }}</span></div>
-          <div class="progress" role="progressbar" aria-label="{{ label }}" aria-valuenow="{{ (case[key]*100)|round|int }}" aria-valuemin="0" aria-valuemax="100">
-            <div class="progress-bar bg-secondary" style="width: {{ (case[key]*100)|round(1) }}%"></div></div>
-        </div>
-        {% endfor %}
-        <div class="mt-3">
-          <div class="d-flex justify-content-between small"><span><b>Aggregated score S</b> vs threshold τ</span>
-            <span class="font-monospace">S = {{ '%.4f'|format(case.aggregated_score) }} · τ = {{ '%.2f'|format(case.threshold) }}</span></div>
-          <div class="gauge" aria-label="Aggregated score gauge">
-            <div class="gauge-fill {{ 'gauge-real' if ai == 'Real' else 'gauge-fake' }}" style="width: {{ (case.aggregated_score*100)|round(1) }}%"></div>
-            <div class="gauge-tau" style="left: {{ (case.threshold*100)|round(1) }}%"><span>τ</span></div>
-          </div>
-          <div class="d-flex justify-content-between small text-muted"><span>0 · Deepfake side</span><span>Real side · 1</span></div>
-        </div>
-        <p class="small text-muted mt-3 mb-0">Rule: Real if S ≥ τ, otherwise Deepfake. This is a preliminary indication, <b>not a verdict</b>.</p>
+      <div class="case-meta small text-muted mt-1">
+        <span>Submitted by <b>{{ case.submitted_by }}</b></span>
+        <span>{{ case.submitted_at }}</span>
+        <span title="Model version">Model: {{ case.model_version }}</span>
       </div>
     </div>
+    <ol class="stepper" aria-label="Case progress">
+      <li class="done">Submitted</li>
+      <li class="done">AI analysis</li>
+      <li class="{{ 'done' if case.status != 'pending' else 'current' }}">Analyst review</li>
+      <li class="{{ 'done' if case.status != 'pending' else '' }}">Report</li>
+    </ol>
+    {% if case.status != 'pending' %}
+      <a class="btn btn-primary" href="{{ url_for('view_report', case_id=case.case_id) }}">View forensic report</a>
+    {% endif %}
+  </div>
+</div>
 
-    <!-- HUMAN review -->
-    <div class="card shadow-sm section-human">
-      <div class="card-header"><span class="badge bg-light text-dark me-2">HUMAN-VERIFIED</span>Analyst review</div>
+{% if not case.model_trained %}
+<div class="alert alert-danger d-flex align-items-center gap-2 py-2 small fw-semibold" role="alert">
+  <span aria-hidden="true">⚠</span> {{ untrained_banner }}. Treat the AI result below as illustrative only.
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <!-- ================= EVIDENCE (Appendix D redaction protocol) ================= -->
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Evidence</span>
+        <span class="small text-muted">Aligned face crops · 380×380</span>
+      </div>
       <div class="card-body">
-      {% if case.status != 'pending' %}
-        <p class="mb-1"><b>Decision:</b> {{ case.review_decision }} · <b>Final:</b> {{ label_badge(case.final_classification) }}</p>
-        <p class="mb-1"><b>Rationale:</b> {{ case.rationale }}</p>
-        <p class="small text-muted mb-0">Reviewed by {{ case.reviewer_id }} at {{ case.reviewed_at }}. This case is read-only.</p>
-      {% elif conflict %}
-        <div class="alert alert-warning mb-0">You submitted this case, so you cannot review it.</div>
-      {% else %}
-        <form method="post" id="review-form" novalidate>
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div class="mb-3">
-            {% for value, text, help in [
-                ('Confirm', 'Confirm', 'Final classification = ' ~ ai),
-                ('Override', 'Override', 'Final classification = ' ~ opposite(ai)),
-                ('Flag', 'Flag for further investigation', 'Final classification = Inconclusive')] %}
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="decision" id="d-{{ value }}" value="{{ value }}" required
-                     {{ 'checked' if form.get('decision') == value }}>
-              <label class="form-check-label" for="d-{{ value }}"><b>{{ text }}</b> <span class="small text-muted">— {{ help }}</span></label>
+        <div class="row g-3">
+          {% for which, label in [('suspect', 'Suspect'), ('reference', 'Reference')] %}
+          <div class="col-6">
+            <figure class="face-figure mb-0">
+              <span class="face-label face-label-{{ which }}">{{ label }}</span>
+              <img class="evidence-face" alt="{{ label }} face crop"
+                   src="{{ url_for('case_image', case_id=case.case_id, which=which, variant='face') }}">
+            </figure>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Overlay comparison: fade the suspect face over the reference face -->
+        <div class="compare-box mt-4">
+          <div class="d-flex justify-content-between align-items-baseline mb-2">
+            <span class="fw-semibold">Overlay comparison</span>
+            <span class="small text-muted">Drag to fade between the two aligned faces</span>
+          </div>
+          <div class="row g-3 align-items-center">
+            <div class="col-sm-5">
+              <div class="overlay-stage">
+                <img alt="Reference face" src="{{ url_for('case_image', case_id=case.case_id, which='reference', variant='face') }}">
+                <img id="overlay-suspect" alt="Suspect face" src="{{ url_for('case_image', case_id=case.case_id, which='suspect', variant='face') }}" style="opacity:.5">
+              </div>
+            </div>
+            <div class="col-sm-7">
+              <input type="range" class="form-range" id="overlay-range" min="0" max="100" value="50" aria-label="Suspect face opacity">
+              <div class="d-flex justify-content-between small text-muted"><span>Reference</span><span id="overlay-value">50%</span><span>Suspect</span></div>
+              <p class="small text-muted mt-2 mb-0">Misaligned edges, shifting features or colour changes between the two faces can indicate manipulation.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Full images: redacted by default; reveal is analyst-only and logged -->
+        <div class="mt-4">
+          <div class="d-flex justify-content-between align-items-baseline mb-2">
+            <span class="fw-semibold">Full images</span>
+            <span class="small text-muted">Pixelated by default · every reveal is logged</span>
+          </div>
+          <div class="row g-3">
+            {% for which, label in [('suspect', 'Suspect'), ('reference', 'Reference')] %}
+            <div class="col-6">
+              <div class="full-tile">
+                <img class="evidence-full" id="full-{{ which }}" alt="{{ label }} full image (redacted)"
+                     src="{{ url_for('case_image', case_id=case.case_id, which=which, variant='full_pixelated') }}">
+                <span class="redacted-tag" id="tag-{{ which }}">REDACTED</span>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-danger mt-2 w-100 reveal-btn" data-which="{{ which }}"
+                      data-url="{{ url_for('reveal_image', case_id=case.case_id, which=which) }}">Reveal full {{ which }} image (logged)</button>
+              <div class="hash-row mt-2">
+                <span class="small text-muted">SHA-256</span>
+                <code class="hash" title="{{ case[which ~ '_sha256'] }}">{{ case[which ~ '_sha256'][:16] }}…{{ case[which ~ '_sha256'][-8:] }}</code>
+                <button type="button" class="btn btn-link btn-sm p-0 copy-btn" data-copy="{{ case[which ~ '_sha256'] }}">Copy</button>
+              </div>
             </div>
             {% endfor %}
           </div>
-          <input type="hidden" name="override_classification" value="{{ opposite(ai) }}">
-          <label for="rationale" class="form-label fw-semibold">Rationale (required, at least {{ min_rationale }} characters)</label>
-          <textarea class="form-control" id="rationale" name="rationale" rows="4" minlength="{{ min_rationale }}" required
-                    placeholder="Describe the visual evidence supporting your decision (artefacts, lighting, boundaries, landmarks…)">{{ form.get('rationale', '') }}</textarea>
-          <div class="d-flex justify-content-between small mt-1">
-            <span class="text-danger" id="rationale-error"></span><span class="text-muted" id="rationale-count">0 / {{ min_rationale }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= AUTOMATED + HUMAN (sticky) ================= -->
+  <div class="col-lg-5">
+    <div class="sticky-lg-top review-side">
+
+      <!-- AUTOMATED -->
+      <div class="card shadow-sm section-automated mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-light text-dark">AUTOMATED</span> AI-assisted preliminary analysis
+        </div>
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+            <div>
+              <div class="small text-muted mb-1">Preliminary classification</div>
+              <div class="verdict verdict-{{ ai|lower }}">
+                <span aria-hidden="true">{{ '✓' if ai == 'Real' else '⚠' }}</span> {{ ai }}
+              </div>
+              <div class="small text-muted mt-1">Not a verdict · requires analyst review</div>
+            </div>
+            <div class="text-center">
+            <div class="conf-ring" style="--p: {{ (case.confidence_score * 100)|round(1) }}" role="img"
+                 aria-label="Confidence {{ '%.1f'|format(case.confidence_score*100) }} percent">
+              <div class="conf-inner"><b>{{ '%.0f'|format(case.confidence_score*100) }}%</b></div>
+            </div>
+            <div class="small text-muted mt-1">Confidence</div>
+            </div>
           </div>
-          <button class="btn btn-success mt-3" id="review-submit">Submit review &amp; generate report</button>
-        </form>
-      {% endif %}
+
+          {% for key, label, help in [
+              ('cosine_similarity', 'Cosine similarity', 'Angle between the two face embeddings, mapped to 0–1. Higher = more similar.'),
+              ('euclidean_similarity', 'Euclidean similarity', 'Distance between the two embeddings, converted to 1 − d/2. Higher = more similar.'),
+              ('ssim', 'SSIM (face crops)', 'Structural similarity of the two aligned face images (luminance, contrast, structure).')] %}
+          <div class="metric-row" title="{{ help }}">
+            <div class="d-flex justify-content-between small">
+              <span>{{ label }} <span class="info-dot" aria-hidden="true">i</span></span>
+              <span class="font-monospace">{{ '%.4f'|format(case[key]) }}</span>
+            </div>
+            <div class="metric-track"><div class="metric-fill" style="width: {{ (case[key]*100)|round(1) }}%"></div></div>
+          </div>
+          {% endfor %}
+
+          <!-- S vs tau gauge with labelled zones -->
+          <div class="mt-3">
+            <div class="d-flex justify-content-between small mb-1">
+              <b>Aggregated score S vs threshold τ</b>
+              <span class="font-monospace">S {{ '%.3f'|format(case.aggregated_score) }} · τ {{ '%.2f'|format(case.threshold) }}</span>
+            </div>
+            <div class="zone-gauge" aria-label="S {{ '%.3f'|format(case.aggregated_score) }} against threshold {{ '%.2f'|format(case.threshold) }}">
+              <div class="zone zone-fake" style="width: {{ tau_pct }}%"></div>
+              <div class="zone zone-real" style="width: {{ 100 - tau_pct }}%"></div>
+              <div class="tau-line" style="left: {{ tau_pct }}%"><span>τ</span></div>
+              <div class="s-pin" style="left: {{ s_pct }}%"><span>S</span></div>
+            </div>
+            <div class="d-flex justify-content-between small mt-3">
+              <span class="zone-key zone-key-fake">0 · Deepfake zone (S &lt; τ)</span>
+              <span class="zone-key zone-key-real">Real zone (S ≥ τ) · 1</span>
+            </div>
+            <p class="small text-muted mt-2 mb-0">S = {{ '%.2f'|format(metric_weights.cosine) }}·cosine + {{ '%.2f'|format(metric_weights.euclidean) }}·euclidean + {{ '%.2f'|format(metric_weights.ssim) }}·SSIM. Real if S ≥ τ, otherwise Deepfake.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- HUMAN-VERIFIED -->
+      <div class="card shadow-sm section-human">
+        <div class="card-header d-flex align-items-center gap-2">
+          <span class="badge bg-light text-dark">HUMAN-VERIFIED</span> Analyst review
+        </div>
+        <div class="card-body">
+        {% if case.status != 'pending' %}
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="small text-muted">Decision</span> <b>{{ case.review_decision }}</b>
+            <span class="small text-muted ms-3">Final</span> {{ label_badge(case.final_classification) }}
+          </div>
+          <blockquote class="rationale-quote mb-2">{{ case.rationale }}</blockquote>
+          <p class="small text-muted mb-0">Reviewed by {{ case.reviewer_id }} at {{ case.reviewed_at }}. This case is read-only.</p>
+        {% elif conflict %}
+          <div class="alert alert-warning mb-0">You submitted this case, so you cannot review it.</div>
+        {% else %}
+          <form method="post" id="review-form" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="small fw-semibold mb-2">1 · Your decision</div>
+            <div class="decision-grid mb-3" role="radiogroup" aria-label="Decision">
+              {% for value, title, icon, result, cls in [
+                  ('Confirm', 'Confirm', '✓', ai, 'confirm'),
+                  ('Override', 'Override', '⇄', other, 'override'),
+                  ('Flag', 'Flag', '⚑', 'Inconclusive', 'flag')] %}
+              <label class="decision-card decision-{{ cls }} {{ 'selected' if form.get('decision') == value }}" for="d-{{ value }}">
+                <input class="visually-hidden" type="radio" name="decision" id="d-{{ value }}" value="{{ value }}" required
+                       {{ 'checked' if form.get('decision') == value }}>
+                <span class="decision-icon" aria-hidden="true">{{ icon }}</span>
+                <span class="decision-title">{{ title }}</span>
+                <span class="decision-result">Final: <b>{{ result }}</b></span>
+              </label>
+              {% endfor %}
+            </div>
+            <input type="hidden" name="override_classification" value="{{ other }}">
+
+            <label for="rationale" class="small fw-semibold mb-1">2 · Rationale <span class="text-muted fw-normal">(at least {{ min_rationale }} characters)</span></label>
+            <div class="chip-row mb-2" aria-label="Insert a common observation">
+              {% for chip in ['Blending seam at hairline/jawline', 'Lighting mismatch face vs. neck',
+                              'Skin texture inconsistent', 'Warping around eyes/nose',
+                              'Features match the reference', 'Only compression differences',
+                              'Image quality too low to judge'] %}
+              <button type="button" class="chip" data-chip="{{ chip }}">+ {{ chip }}</button>
+              {% endfor %}
+            </div>
+            <textarea class="form-control" id="rationale" name="rationale" rows="4" minlength="{{ min_rationale }}" required
+                      placeholder="Describe the visual evidence supporting your decision (artefacts, lighting, boundaries, landmarks…)">{{ form.get('rationale', '') }}</textarea>
+            <div class="d-flex justify-content-between small mt-1">
+              <span class="text-danger" id="rationale-error"></span><span class="text-muted" id="rationale-count">0 / {{ min_rationale }}</span>
+            </div>
+            <button class="btn btn-success w-100 mt-3" id="review-submit">Submit review &amp; generate report</button>
+            <p class="small text-muted text-center mt-2 mb-0">Once submitted, the case becomes read-only.</p>
+          </form>
+        {% endif %}
+        </div>
       </div>
     </div>
   </div>

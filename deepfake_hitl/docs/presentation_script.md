@@ -302,13 +302,17 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 
 *Alexander:* *This is the core of our study.*
 - *On the left are only the **aligned face crops**. The full images are **pixelated** by default. This protects sensitive material.*
-- *On the right, in blue and labeled **AUTOMATED**, is the AI's preliminary analysis: the classification, the confidence, the three similarity metrics, and the aggregated score S against τ.* *(Read the actual values on screen.)*
+- *On the right, in blue and labeled **AUTOMATED**, is the AI's preliminary analysis: the classification, the confidence ring, the three similarity metrics, and a gauge showing the aggregated score S against the threshold τ, with the Deepfake zone in red and the Real zone in green.* *(Read the actual values on screen.)*
+
+**Action:** drags the **Overlay comparison** slider back and forth.
+
+*Alexander:* *The overlay comparison fades the suspect face over the reference face. Because both are aligned by MTCNN, any edits, such as warping or colour changes, stand out as the faces shift.*
 
 **Action:** clicks **Reveal full image** → confirms.
 
 *Alexander:* *If the analyst must see the full image, they reveal it deliberately. Only analysts can do this, and every reveal is logged with their ID and the time.*
 
-**Action:** in the green **HUMAN-VERIFIED** section, chooses:
+**Action:** in the green **HUMAN-VERIFIED** section, clicks a decision card (each card shows the resulting final classification):
 - AI said **Real** → **Override** · AI said **Deepfake** → **Confirm**.
 
 **Action:** types "fake" and clicks submit.
@@ -318,7 +322,9 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 **Action:** types the rationale (Override example):
 > Although the AI scored the image as Real, the inner face region shows warping around the eyes and nose bridge, and its colour saturation differs from the forehead and neck. These localized distortions are inconsistent with the reference image. Overriding to Deepfake.
 
-…and submits.
+…(or clicks the quick-phrase chips, then adds a sentence), clicks **Submit review & generate report**, and clicks **OK** on the confirmation popup.
+
+*Alexander:* *Before the review is saved, the system asks the analyst to confirm, because the case becomes read-only afterwards.*
 
 *Alexander (if Override):* *This is exactly why human review matters. The AI's preliminary result was wrong, and the analyst corrected it, with the reasoning on record. This is line 16 of our algorithm.*
 
