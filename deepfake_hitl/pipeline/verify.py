@@ -1,24 +1,33 @@
-"""VERIFY_MEDIA(I, R, tau): the full algorithm of Section 3.6.
+"""VERIFY_MEDIA(I, R, tau): the Algorithm of Section 3.6.
 
-The step numbers in the comments (Step 2 ... Step 15) are the ones listed in
-the README "Paper <-> Code mapping" table. Step 1 is the algorithm input
-(the function signature).
+Comments marked "Line N" use the line numbers of the manuscript's algorithm
+(thesis slide "Algorithm Overview"). Lines 2-15 (the automated part) are in
+this function; lines 16-18 run later in the web app, after an analyst acts.
 
-    Step 1   Input: suspect image I, reference image R, threshold tau
-    Step 2   Detect, crop and align the face in I            (MTCNN)
-    Step 3   Detect, crop and align the face in R            (MTCNN)
-    Step 4   Resize both faces to 380x380 and normalise (ImageNet mean/std)
-    Step 5   F1_I, F1_R <- EfficientNet-B4(I'), EfficientNet-B4(R')    local features
-    Step 6   F2_I, F2_R <- Transformer(I'),     Transformer(R')        global attention
-    Step 7   F_I <- Fuse(F1_I, F2_I);  F_R <- Fuse(F1_R, F2_R)   (concat -> projection -> L2)
-    Step 8   cos <- (CosineSimilarity(F_I, F_R) + 1) / 2
-    Step 9   d <- EuclideanDistance(F_I, F_R);  euc <- 1 - d/2
-    Step 10  ssim <- SSIM(face_I, face_R)
-    Step 11  S <- w_cos*cos + w_euc*euc + w_ssim*ssim
-    Step 12  if S >= tau then label <- "Real"
-    Step 13  else label <- "Deepfake"
-    Step 14  confidence <- Confidence(S, tau)
-    Step 15  return (label, confidence, cos, euc, ssim, S) -> forwarded to Human-in-the-Loop review
+    Line 1   procedure VERIFY_MEDIA(I, R, tau)
+    Line 2   I_cropped, I_aligned <- MTCNN(I)                 face detection + alignment
+    Line 3   I_norm <- Resize_And_Normalize(I_cropped, 380x380)
+    Line 4   F_1 <- EfficientNet-B4(I_norm)                    local texture features
+    Line 5   F_2 <- Vision Transformer(I_norm)                 global attention
+    Line 6   F_fused <- Concatenate(F_1, F_2)                  (+ Linear -> LayerNorm -> L2)
+    Line 7   Score_Cos  <- CosineSimilarity(F_fused, R)        mapped to [0,1] as (cos+1)/2
+    Line 8   Score_Euc  <- EuclideanDistance(F_fused, R)       converted to 1 - d/2
+    Line 9   Score_SSIM <- SSIM(face crop of I, face crop of R)
+    Line 10  S <- w_cos*Score_Cos + w_euc*Score_Euc + w_ssim*Score_SSIM
+    Line 11-15  if S >= tau then C <- "Real" else C <- "Deepfake"
+    Line 16  D, Rationale <- Human_In_The_Loop_Review(...)    app.py::review_case -> review/workflow.py
+    Line 17  FR <- Generate_Forensic_Report(...)              reports/report_generator.py::generate_pdf
+    Line 18  return D, S, FR
+
+Notes on how the code realises the pseudocode:
+* R is the reference *image*; lines 2-6 are applied to it as well, so R in
+  lines 7-8 is the reference's fused embedding.
+* Line 9: SSIM needs 2-D image data, so it compares the aligned face crops
+  (not the 1-D embeddings).
+* Line 8: the distance is converted to a similarity (1 - d/2) so that, like
+  the other two metrics, higher means "more similar" before aggregation.
+* A confidence score (classifier.confidence) is computed next to lines 11-15;
+  it is not a separate line in the pseudocode.
 """
 import numpy as np
 import torch
@@ -38,7 +47,7 @@ def verify_media(suspect_path, reference_path, tau=None, *, preprocessor=None,
     caller can store them for the redacted review view.
     Raises preprocessing.NoFaceDetectedError if either image has no face.
     """
-    # Step 1: inputs
+    # Line 1: procedure VERIFY_MEDIA(I, R, tau)
     tau = classifier.validate_threshold(config.THRESHOLD_TAU if tau is None else tau)
     weights = similarity.validate_weights(weights or config.METRIC_WEIGHTS)
     preprocessor = preprocessor or FacePreprocessor()
@@ -46,11 +55,10 @@ def verify_media(suspect_path, reference_path, tau=None, *, preprocessor=None,
         from pipeline.model import get_model_bundle
         model_bundle = get_model_bundle()
 
-    # Step 2: detect/crop/align face in the suspect image I
-    # Step 4 (for I): resize to 380x380 + ImageNet normalisation (inside process_path)
+    # Line 2: MTCNN face detection, cropping and alignment for I
+    # Line 3: resize to 380x380 + ImageNet normalisation (inside process_path)
     suspect = preprocessor.process_path(suspect_path)
-    # Step 3: detect/crop/align face in the reference image R
-    # Step 4 (for R): resize to 380x380 + ImageNet normalisation
+    # Lines 2-3 applied to the reference image R
     reference = preprocessor.process_path(reference_path)
 
     batch = torch.stack([suspect.tensor, reference.tensor])
@@ -58,27 +66,28 @@ def verify_media(suspect_path, reference_path, tau=None, *, preprocessor=None,
     model.eval()
     with torch.no_grad():
         batch = batch.to(model_bundle.device)
-        # Step 5: EfficientNet-B4 local features F1   |  run in parallel on
-        # Step 6: Transformer global features F2      |  the same face
+        # Line 4: EfficientNet-B4 local features F_1   |  run in parallel on
+        # Line 5: Transformer global features F_2      |  the same face (I and R)
         f1, f2 = model.branch_features(batch)
-        # Step 7: feature fusion -> 512-d L2-normalised embeddings F_I, F_R
+        # Line 6: feature fusion -> 512-d L2-normalised embeddings (F_fused for I and R)
         fused = F.normalize(model.fuse(f1, f2), p=2, dim=1).cpu().numpy()
     emb_i, emb_r = fused[0], fused[1]
 
-    # Step 8: cosine similarity, mapped to [0, 1]
+    # Line 7: cosine similarity, mapped to [0, 1]
     cos = similarity.cosine_to_unit(similarity.cosine_similarity(emb_i, emb_r))
-    # Step 9: Euclidean distance on the L2-normalised embeddings -> similarity
+    # Line 8: Euclidean distance on the L2-normalised embeddings -> similarity 1 - d/2
     euc = similarity.euclidean_similarity(emb_i, emb_r)
-    # Step 10: SSIM on the aligned grayscale face crops (SSIM needs 2-D data)
+    # Line 9: SSIM on the aligned grayscale face crops (SSIM needs 2-D data)
     ssim = similarity.ssim_score(suspect.face, reference.face)
-    # Step 11: weighted aggregation
+    # Line 10: aggregated score S (weighted sum)
     s = similarity.aggregate_score(cos, euc, ssim, weights)
-    # Step 12-13: threshold rule (Real if S >= tau else Deepfake)
+    # Lines 11-15: if S >= tau then "Real" else "Deepfake"
     label = classifier.classify(s, tau)
-    # Step 14: confidence from the distance between S and tau
+    # Confidence score (computed alongside lines 11-15)
     conf = classifier.confidence(s, tau)
 
-    # Step 15: return the preliminary result; the caller queues it for analyst review.
+    # Preliminary result -> queued as "pending" for Line 16 (Human-in-the-Loop review)
+    # and Line 17 (forensic report), which run in app.py once an analyst reviews it.
     return {
         "ai_classification": label,
         "confidence_score": float(conf),

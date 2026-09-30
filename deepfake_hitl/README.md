@@ -175,20 +175,20 @@ model (random init) and checks the tensor shapes.
 | 3.5 Training | augmentation, BCE, AdamW, early stopping on val AUC | `training/train.py::main`, `training/dataset.py::train_transform` |
 | 3.5 Datasets | FF++ / Celeb-DF / DFDC face-crop layout | `training/dataset.py::FaceCropDataset`, `training/extract_faces.py` |
 | 3.5 / 3.7 Baseline | XceptionNet (timm `legacy_xception`) | `training/train_baseline.py` |
-| 3.6 Algorithm **Step 1** | Input I, R, τ | `pipeline/verify.py::verify_media` (signature) |
-| 3.6 **Step 2** | Detect/crop/align face in I | `verify_media` → `FacePreprocessor.process_path(suspect_path)` |
-| 3.6 **Step 3** | Detect/crop/align face in R | `verify_media` → `FacePreprocessor.process_path(reference_path)` |
-| 3.6 **Step 4** | Resize 380×380 + normalize | `preprocessing.py::align_and_crop`, `to_tensor` |
-| 3.6 **Step 5** | F₁ ← EfficientNet-B4 | `model.py::branch_features` (`self.cnn`) |
-| 3.6 **Step 6** | F₂ ← Transformer | `model.py::branch_features` (`self.vit`) |
-| 3.6 **Step 7** | F ← Fuse(F₁, F₂) | `model.py::fuse` + L2 normalize in `verify_media` |
-| 3.6 **Step 8** | cosine similarity → (cos+1)/2 | `similarity.py::cosine_similarity`, `cosine_to_unit` |
-| 3.6 **Step 9** | Euclidean distance → 1 − d/2 | `similarity.py::euclidean_distance`, `euclidean_similarity` |
-| 3.6 **Step 10** | SSIM on aligned face crops | `similarity.py::ssim_score` |
-| 3.6 **Step 11** | S = Σ wᵢ·metricᵢ | `similarity.py::aggregate_score` (weights in `config.METRIC_WEIGHTS`) |
-| 3.6 **Steps 12–13** | if S ≥ τ Real else Deepfake | `classifier.py::classify` |
-| 3.6 **Step 14** | confidence score | `classifier.py::confidence` |
-| 3.6 **Step 15** | return result → queue for review | `verify_media` return → `app.py::submit_case` (status `pending`) |
+| 3.6 Algorithm **Line 1** | procedure VERIFY_MEDIA(I, R, τ) | `pipeline/verify.py::verify_media` (signature) |
+| 3.6 **Line 2** | MTCNN face detection + alignment (I, and R) | `verify_media` → `FacePreprocessor.process_path` → `detect_largest_face`, `align_and_crop` |
+| 3.6 **Line 3** | Resize 380×380 + normalize | `preprocessing.py::align_and_crop`, `to_tensor` |
+| 3.6 **Line 4** | F₁ ← EfficientNet-B4 | `model.py::branch_features` (`self.cnn`) |
+| 3.6 **Line 5** | F₂ ← Vision Transformer | `model.py::branch_features` (`self.vit`) |
+| 3.6 **Line 6** | F_fused ← Concatenate(F₁, F₂) | `model.py::fuse` (+ Linear → LayerNorm) and L2 normalize in `verify_media` |
+| 3.6 **Line 7** | Score_Cos → (cos+1)/2 | `similarity.py::cosine_similarity`, `cosine_to_unit` |
+| 3.6 **Line 8** | Score_Euc → 1 − d/2 | `similarity.py::euclidean_distance`, `euclidean_similarity` |
+| 3.6 **Line 9** | Score_SSIM (on aligned face crops) | `similarity.py::ssim_score` |
+| 3.6 **Line 10** | S = Σ wᵢ·metricᵢ | `similarity.py::aggregate_score` (weights in `config.METRIC_WEIGHTS`) |
+| 3.6 **Lines 11–15** | if S ≥ τ Real else Deepfake | `classifier.py::classify` (+ `classifier.py::confidence`) |
+| 3.6 **Line 16** | Human_In_The_Loop_Review → D, Rationale | `app.py::review_case` → `review/workflow.py::submit_review`, `apply_review` |
+| 3.6 **Line 17** | Generate_Forensic_Report | `reports/report_generator.py::generate_pdf`, `build_report_data` |
+| 3.6 **Line 18** | return D, S, FR | stored in the case record (`final_classification`, `aggregated_score`, `report_path`) |
 | 3.6 τ selection | F1 / Youden's J calibration | `pipeline/calibrate_threshold.py` |
 | 3.7 Detection metrics | accuracy, precision, recall, F1, ROC-AUC, confusion matrix | `evaluation/metrics.py::classification_metrics`; `evaluation/evaluate_model.py` |
 | 3.7 Agreement metrics | agreement rate, Cohen's κ (sklearn + manual) | `evaluation/metrics.py::agreement_rate`, `cohens_kappa`, `cohens_kappa_manual`; `evaluation/evaluate_agreement.py`; admin page `/evaluation` |
@@ -205,9 +205,9 @@ model (random init) and checks the tensor shapes.
 | Appendix D retention | secure purge CLI | `app.py::purge_case`, `purge-case` / `purge-all` commands; `storage.py::secure_delete_file` |
 | Appendix D demo | non-explicit demo data only | `demo/README.md`, `demo/make_demo_samples.py` |
 
-> **Check the step numbering.** The Step 1–15 numbering above is how the code comments in
-> `pipeline/verify.py` label the Section 3.6 algorithm. If the manuscript numbers its
-> pseudocode differently, update the comments and this table together (or the manuscript).
+> **Line numbers** follow the manuscript's Algorithm Overview (lines 1–19). The comments in
+> `pipeline/verify.py` use the same "Line N" labels. Lines 2–15 run automatically at submission;
+> lines 16–18 run when the analyst submits the review.
 
 ## 10. Notes for the manuscript
 

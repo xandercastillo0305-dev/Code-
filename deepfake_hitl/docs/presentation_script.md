@@ -1,362 +1,378 @@
 # Presentation & Demo Script — 60 minutes
 
 **"Deepfake Detection for Pornographic Images with Human-in-the-Loop"**
-BS Computer Science · National University
+National University • CCIT • Adviser: Ms. Susan S. Caluya
 
 > **How to use this script**
-> - `[P1]`–`[P4]` = presenters. Reassign to match your group size.
-> - Text in *italics* is meant to be said out loud; bullets are talking points in your own words.
-> - `[PLACEHOLDER]` = fill in from your manuscript. **Do not invent numbers**; use only your paper's figures.
-> - ⏱ times are cumulative. Speaking pace is about 120–130 words per minute. Rehearse with a timer.
-> - Slide numbers are left generic ("Slide: Title"). Once the PPT is shared, this can be aligned slide by slide.
+> - It follows your 15-slide deck, with the **live demo inserted after Slide 13**.
+> - Speaker assignments are a suggestion. Swap them freely, but each person should own a whole block.
+> - *Italics* = say it out loud. You can paraphrase; don't read the slide word for word.
+> - ⏱ = cumulative time. Speaking pace is about 120–130 words per minute. Rehearse with a timer.
+> - Read **"Slide fixes before the defense"** at the end first. A few slide lines don't match the system and the panel could catch them.
 
 ---
 
 ## Time plan
 
-| Time | Part | Presenter |
+| Time | Slide(s) | Speaker |
 |---|---|---|
-| 0:00 – 3:00 | Opening and introduction | P1 |
-| 3:00 – 10:00 | Chapter 1 — The problem | P1 |
-| 10:00 – 17:00 | Chapter 2 — Related literature and research gap | P2 |
-| 17:00 – 32:00 | Chapter 3 — Methodology and system design | P2 → P3 |
-| 32:00 – 47:00 | **Live system demo** | P3 (drives) + P4 (narrates) |
-| 47:00 – 54:00 | Testing, results and limitations | P4 |
-| 54:00 – 58:00 | Conclusions and recommendations | P1 |
-| 58:00 – 60:00 | Closing | P1 |
+| 0:00 – 2:30 | 1 · Title | Alexander |
+| 2:30 – 5:00 | 2 · Chapter 1 Introduction | Alexander |
+| 5:00 – 9:00 | 3 · Background of the Study | Genesis |
+| 9:00 – 13:00 | 4 · Statement of the Problem | Genesis |
+| 13:00 – 17:00 | 5 · Objectives of the Study | Genesis |
+| 17:00 – 19:30 | 6 · Significance of the Study | Charles |
+| 19:30 – 23:00 | 7 · Scope and Delimitations | Charles |
+| 23:00 – 26:30 | 8 · Theoretical Framework | Charles |
+| 26:30 – 29:30 | 9 · Conceptual Framework | Tristan |
+| 29:30 – 33:30 | 10 · System Architecture | Tristan |
+| 33:30 – 36:00 | 11 · Methodology & Sequential Steps | Tristan |
+| 36:00 – 40:00 | 12 · Algorithm Overview | Tristan |
+| 40:00 – 42:30 | 13 · Datasets, Training & Evaluation | Mark |
+| **42:30 – 55:00** | **Live system demonstration** | **Alexander drives · Mark narrates** |
+| 55:00 – 58:00 | 14 · Synthesis and Core Contributions | Mark |
+| 58:00 – 60:00 | 15 · Thank You | Alexander |
 
-Keep **2–3 minutes of buffer** inside the demo block; that's where time usually runs over.
-
----
-
-## 0:00 – 3:00 · Opening `[P1]`
-
-**Slide: Title**
-
-*Good [morning/afternoon], honorable panel members, [adviser's name], and everyone present. We are [group name / members' names], and today we present our thesis, "Deepfake Detection for Pornographic Images with Human-in-the-Loop."*
-
-*Our study builds a digital forensic tool that helps investigators and forensic analysts determine whether an image of a person has been manipulated with deepfake technology, especially in cases of non-consensual pornographic deepfakes. Our main idea is simple: artificial intelligence gives a preliminary assessment, but a trained human analyst always makes the final decision.*
-
-**Slide: Presentation outline**
-
-*We will first discuss the problem and our objectives, then the related literature, our methodology and system design, a live demonstration of the prototype, our testing and results, and finally our conclusions and recommendations.*
+The demo is where time usually runs over. If you're behind, shorten Slides 6 and 8, never the demo.
 
 ---
 
-## 3:00 – 10:00 · Chapter 1 — The Problem `[P1]`
+## Slide 1 · Title — ⏱ 0:00–2:30 · *Alexander*
 
-**Slide: Background of the study** (≈2 min)
-- Deepfakes: AI-generated or AI-altered media that swaps or modifies a person's face.
-- The most harmful use is **non-consensual pornographic deepfakes**: a real person's face placed onto explicit content without consent.
-- `[PLACEHOLDER: the statistic from your RRL, e.g. share of online deepfakes that are pornographic, with citation. Use only the figure and source in your manuscript.]`
-- `[PLACEHOLDER: local context, e.g. Philippine law / cases / agencies cited in your paper.]`
+*Good [morning/afternoon] to our honorable panel members, to our adviser, Ms. Susan Caluya, and to everyone present.*
 
-*Victims suffer reputational, psychological and legal harm, and investigators need a reliable way to examine this kind of evidence.*
+*We are Alexander Castillo, Charles Medio, Genesis Navarro, Tristan Jhay Salamat, and Mark Jhoshua Taberna, from the Computer Science Department of National University. Today we present our thesis, "Deepfake Detection for Pornographic Images with Human-in-the-Loop."*
 
-**Slide: Statement of the problem** (≈2 min)
-- `[PLACEHOLDER: read your general problem and specific problems exactly as written in Chapter 1.]`
-- Key points to stress:
-  - Fully automated detectors can be wrong, and in a forensic setting a wrong verdict has serious consequences.
-  - Existing tools rarely keep the AI's output **separate** from the human expert's conclusion.
-  - Handling explicit evidence requires strict privacy and chain-of-custody controls.
+*In one sentence: we built a web-based digital forensic system in which an AI model gives a preliminary assessment of whether a facial image has been manipulated, but a trained forensic analyst always makes the final decision, and the system produces a report that keeps the two clearly separate.*
 
-**Slide: Objectives** (≈1.5 min)
-- `[PLACEHOLDER: your general and specific objectives.]`
-- Map each objective to a system feature (you'll show them in the demo):
-  - Hybrid CNN–Transformer detection → AI analysis module
-  - Human-in-the-loop verification → analyst review
-  - Forensic reporting → Appendix B report
-  - Evaluation → accuracy, F1, ROC-AUC, agreement rate, Cohen's κ
-
-**Slide: Scope and delimitations** (≈1.5 min)
-
-*Our system analyzes the **facial region** of an image. It detects face-swap and face-manipulation deepfakes, which is how most pornographic deepfakes are made: a victim's face is placed onto another person's body. Manipulations limited to the body or background are outside the AI's scope and are handled by the analyst's review of the full image. The system covers adult subjects only, and every submission requires an adult-subject and authorization attestation.*
-
-- `[PLACEHOLDER: any other delimitations in Section 1.5, e.g. images only, not video.]`
-
-**Slide: Significance of the study** (≈30 s)
-- Law enforcement / cybercrime units, forensic analysts, victims, future researchers.
+*We will present the introduction and problem, our objectives and scope, the theoretical and conceptual frameworks, our system architecture and algorithm, our datasets and evaluation plan, then a live demonstration of the working prototype, and finally our contributions.*
 
 ---
 
-## 10:00 – 17:00 · Chapter 2 — Related Literature `[P2]`
+## Slide 2 · Chapter 1: Introduction — ⏱ 2:30–5:00 · *Alexander*
 
-**Slide: How deepfakes are made** (≈1.5 min)
-- Face swapping (autoencoders, GANs), face reenactment, fully synthetic faces.
-- Common artefacts: blending boundaries, lighting mismatch, skin-texture inconsistency, warping.
+*Artificial intelligence has advanced very quickly, and one of its most controversial products is the deepfake. Deepfakes use deep learning models, especially Generative Adversarial Networks or GANs, to create facial images and videos that look real but have been manipulated.*
 
-**Slide: Deepfake detection approaches** (≈2.5 min)
-- CNN-based detectors: **XceptionNet** (standard FaceForensics++ baseline), **EfficientNet** (strong accuracy per parameter; B4 uses 380×380 input).
-- Transformer-based: **Vision Transformer (ViT)** captures global relationships across the whole face through self-attention.
-- Hybrid CNN + Transformer: local texture detail + global consistency.
-- Similarity/verification approaches: compare a suspect image to a trusted reference of the same person.
-- `[PLACEHOLDER: cite the specific studies from your RRL for each.]`
-
-**Slide: Human-in-the-loop in forensics** (≈1.5 min)
-- AI as decision support, not decision maker; human accountability in evidence handling.
-- `[PLACEHOLDER: your HITL / digital forensics references.]`
-
-**Slide: Research gap / synthesis** (≈1.5 min)
-
-*Most existing work focuses only on detection accuracy. Few systems combine a hybrid detector with a structured human review workflow, a report that clearly separates automated from human-verified findings, and built-in privacy protections for sensitive material. Our study addresses that gap.*
+*With this technology, a person's face can be placed onto content they never took part in. What once needed expert skill can now be done by almost anyone with free tools. This is dangerous when used to create sexually explicit material of real people without their consent. That is the problem our study focuses on.*
 
 ---
 
-## 17:00 – 32:00 · Chapter 3 — Methodology and System Design `[P2 → P3]`
+## Slide 3 · Background of the Study — ⏱ 5:00–9:00 · *Genesis*
 
-### `[P2]` Conceptual framework (17:00 – 19:00)
+*Detecting and classifying deepfake face images has become more complex because generative AI keeps improving. GANs can produce synthetic faces that closely resemble real human identities, so the visible flaws of early deepfakes are disappearing.*
 
-**Slide: Conceptual framework — Input → Process → Human Review → Output**
+*When this capability is applied to sexually explicit content, it creates a distinct and growing type of online harm: non-consensual synthetic pornography, where a real person's likeness is superimposed onto explicit material they never agreed to appear in. This is supported by the literature we cite as references 3 and 11 in our manuscript.*
 
-*The framework has four stages. **Input**: an authorized investigator submits a suspect image and a reference image of the same adult subject. **Process**: our AI pipeline analyzes both faces. **Human Review**: a trained forensic analyst examines the result and confirms, overrides, or flags it, with a written rationale. **Output**: a forensic report that keeps the automated analysis separate from the human-verified conclusion.*
+*There are two challenges here. The first is **technological**: detectors must catch increasingly subtle manipulations. The second is **forensic**: when this content becomes evidence, investigators need more than a yes-or-no answer from a model. They need to know how the conclusion was reached, who reviewed it, and whether the evidence was handled properly. That second challenge is the gap our system addresses.*
 
-### `[P2]` The AI pipeline (19:00 – 24:00)
-
-**Slide: System pipeline (Section 3.3)**
-
-*Preprocessing → EfficientNet-B4 and Transformer in parallel → Feature Fusion → Multi-Metric Similarity → Preliminary Classification → Human Review → Report.*
-
-Walk through each module (≈45 s each):
-
-1. **Preprocessing.** *MTCNN detects the largest face, aligns it so the eyes are level, crops it with a small margin, resizes it to 380×380, and normalizes it. If no face is found, the system refuses to analyze the case instead of guessing.*
-2. **CNN branch — EfficientNet-B4.** *Extracts **local** features such as texture, edges and blending artefacts, giving a 1,792-dimensional feature vector.*
-3. **Transformer branch — Vision Transformer.** *Runs in parallel on the same face and captures **global** relationships across the whole face through self-attention. Because the ViT works on 16×16 patches, the face is resized to 384×384 inside this branch only.*
-4. **Feature fusion.** *The two feature vectors are concatenated and projected into a single 512-dimensional embedding, then normalized.*
-5. **Multi-metric similarity.** *We compare the suspect's embedding with the reference's using three metrics: cosine similarity, Euclidean-based similarity, and SSIM, the structural similarity of the two aligned face crops.*
-6. **Preliminary classification.** *If S is at least the threshold τ, the result is "Real"; otherwise it is "Deepfake", along with a confidence score.*
-
-### `[P3]` Algorithm and formulas (24:00 – 27:00)
-
-**Slide: Algorithm (Section 3.6)**
-- Read the algorithm steps from your manuscript. `[PLACEHOLDER: confirm your step numbering matches the code comments in pipeline/verify.py.]`
-
-**Slide: Formulas (Appendix A)**
-
-| Metric | Formula |
-|---|---|
-| Cosine | cos(A,B) = A·B / (‖A‖‖B‖), mapped to [0,1] as (cos+1)/2 |
-| Euclidean | d(A,B) = √Σ(Aᵢ−Bᵢ)², similarity = 1 − d/2 |
-| SSIM | structural similarity of the aligned face crops |
-| Aggregated | S = w₁·cos + w₂·euc + w₃·ssim, weights sum to 1 (default ⅓ each) |
-| Decision | Real if S ≥ τ (τ = 0.70), else Deepfake |
-| Confidence | 0.5 + 0.5 · min(1, \|S − τ\| / max(τ, 1 − τ)) |
-
-*SSIM needs two-dimensional image data, so it is computed on the aligned face crops rather than on the embedding vector.*
-
-### `[P3]` Human-in-the-loop workflow (27:00 – 29:00)
-
-**Slide: Roles and review workflow**
-- **Investigator** submits cases; **Analyst** reviews; **Admin** manages users and evaluation.
-- Analyst decisions:
-  - **Confirm** → final = AI result → status *Verified*
-  - **Override** → final = the opposite class → status *Verified*
-  - **Flag** → final = *Inconclusive* → status *Flagged*
-- A written rationale is always required. Reviewed cases become read-only. An analyst can't review their own submission.
-
-**Slide: Case record and forensic report (Appendices B & C)**
-- Every case stores the Appendix C fields, including SHA-256 hashes for chain of custody.
-- Report sections: I Case Information · II Submitted Images · **III AI Analysis (AUTOMATED)** · **IV Human Review (HUMAN-VERIFIED)** · V Sign-off.
-
-### `[P3]` Data, training, evaluation, tech stack, ethics (29:00 – 32:00)
-
-**Slide: Datasets and training (Section 3.5)**
-- FaceForensics++, Celeb-DF, DFDC, obtained through the official request forms.
-- Face crops extracted with the same MTCNN pipeline; augmentation: flip, rotation, scaling.
-- BCE loss, AdamW, early stopping on validation ROC-AUC; trained on Google Colab GPU.
-
-**Slide: Evaluation metrics (Section 3.7)**
-- Detection: accuracy, precision, recall, F1, ROC-AUC (Deepfake = positive); baseline: XceptionNet.
-- Human–AI: agreement rate and Cohen's κ = (pₒ − pₑ) / (1 − pₑ).
-
-**Slide: Tech stack (Section 3.8)**
-- Python, PyTorch + timm, facenet-pytorch (MTCNN), scikit-image, scikit-learn, Flask, ReportLab, pytest.
-
-**Slide: Ethical safeguards (Appendix D)**
-- Adults-only attestation · uploads stored outside public folders · face crops only, full images blurred by default · full-image reveal is analyst-only and logged · append-only audit log · admin-only secure purge.
-
-*Now we will show how all of this works in our prototype.*
+> Optional: add one statistic or local case from your RRL here, with its citation.
 
 ---
 
-## 32:00 – 47:00 · Live System Demo `[P3 drives, P4 narrates]`
+## Slide 4 · Statement of the Problem — ⏱ 9:00–13:00 · *Genesis*
 
-> **Before the defense (the day before and 30 minutes before)**, see the checklist at the end of this script.
-> Use only the NASA demo images in `demo\samples\` (public domain, non-explicit).
+*Deepfake generation tools are now easy to access, so it is easier than ever to produce convincing, non-consensual sexually explicit images of real people. Because this content is so damaging and its authenticity is often disputed, relying on automated classification alone, whether too little or too much, is risky.*
 
-### 1 · Start the app (32:00 – 33:00)
-`[P3]` In the VS Code terminal:
-```powershell
-.venv\Scripts\activate
-flask --app app run
-```
-Open **http://127.0.0.1:5000** in Chrome.
+*Consider the two kinds of errors. An unreviewed **false positive**, where a real image is called fake, may unjustly accuse someone or dismiss a victim's genuine evidence. An unreviewed **false negative**, where a fake image is called real, may let harmful material keep circulating.*
 
-`[P4]` *The system runs locally on a CPU laptop. The red banner says "UNTRAINED MODEL". Our paper states this limitation: until the fine-tuned weights are loaded, the AI results are not indicative of real accuracy, and the system says so on every page and every report.*
+*We also observed three weaknesses in many existing detection systems. First, they rely only on CNN-based feature extraction. Second, they use a single similarity measurement. Third, they give an automated final verdict with no structured human forensic review. These systems can catch obvious manipulations, but they struggle with subtle alterations, often perform poorly on datasets they were not trained on, and, most importantly for forensic use, leave no auditable record of how a human expert weighed the evidence.*
 
-> If your model is trained by the defense date, the banner will not appear. Skip this line and say the model is loaded with fine-tuned weights.
+*This leads to our objectives.*
 
-### 2 · Investigator submits a case (33:00 – 36:30)
-`[P3]` Log in as **INV-01** / password.
+---
 
-`[P4]` *We are now an authorized investigator. Investigators can only submit cases and view their own reports.*
+## Slide 5 · Objectives of the Study — ⏱ 13:00–17:00 · *Genesis*
 
-`[P3]` Click **Submit case** → Suspect: `suspect_manipulated.png` → Reference: `reference.png`.
+*Our general objective is to design and build a web-based digital forensic system that detects and classifies suspected deepfake pornographic images using a Hybrid CNN-Transformer model and multi-metric similarity analysis, with a human-in-the-loop review stage in which a trained forensic analyst evaluates the model's output before the final classification and forensic report are issued.*
 
-`[P4]` *The suspect image is the one under examination. The reference is a known authentic photo of the same person. Our demo uses a public-domain NASA portrait; the suspect has a synthetic edit to the inner face region.*
+*We have four specific objectives:*
 
-`[P3]` Point at the attestation checkbox, tick it.
+1. *The **hybrid engine**: build a Hybrid CNN-Transformer model using EfficientNet-B4 and Transformer attention, with MTCNN for facial preprocessing.*
+2. *The **multi-metric analysis**: extract facial embeddings and compute cosine similarity, Euclidean distance, and SSIM, so the evidence is interpretable rather than a single hidden score.*
+3. *The **human-in-the-loop review interface**: a dashboard where analysts examine the scores, record their rationale, and generate reports.*
+4. ***Deployment and evaluation**: a Flask-based prototype, evaluated with accuracy, precision, recall, F1-score, ROC-AUC, and Cohen's kappa for agreement between the AI and the analyst.*
 
-`[P4]` *Every submission requires this attestation: the subject is an adult and the investigator is authorized. This is from our ethics protocol in Appendix D.*
+*You will see each of these working in our live demonstration later.*
 
-`[P3]` Click **Submit for analysis**.
+---
 
-`[P4]` *The system now computes a SHA-256 hash of each file for chain of custody, detects and aligns the faces, runs both the EfficientNet and Transformer branches, computes the three similarity metrics, and produces a preliminary classification.*
+## Slide 6 · Significance of the Study — ⏱ 17:00–19:30 · *Charles*
 
-`[P3]` Show "My cases".
+*Our study benefits three groups.*
 
-`[P4]` *The case is **Pending**. The investigator does not see the AI's result. No case is final until a forensic analyst reviews it.*
+*For **forensic investigators and law enforcement**, it provides auditable, human-verified forensic reports. Every case records who submitted it, the AI's analysis, who reviewed it, and why, which is the kind of documentation formal proceedings require.*
 
-### 3 · No-face rejection (36:30 – 37:30)
-`[P3]` Submit `no_face.png` as suspect + `reference.png`.
+*For **victim-support organizations**, it offers transparent evidence that can support takedown requests and help defend victims.*
 
-`[P4]` *If no face is detected, the system refuses: "No face detected. Case cannot be analyzed." It never guesses. The rejection is still recorded in the audit log.*
+*For **AI researchers and future developers**, it provides an open architectural blueprint for combining interpretable multi-metric feature fusion with a human-in-the-loop audit pipeline.*
 
-### 4 · Analyst dashboard (37:30 – 38:30)
-`[P3]` Log out → log in as **ANA-01**.
+---
 
-`[P4]` *Now we are the forensic analyst. The dashboard shows pending, verified and flagged counts, and the live agreement rate between the AI and human reviewers. Each case shows its preliminary AI classification and aggregated score.*
+## Slide 7 · Scope and Delimitations — ⏱ 19:30–23:00 · *Charles*
 
-### 5 · Review interface (38:30 – 43:30) — the core of our study
-`[P3]` Click **Review** on the new case.
+*Our **scope**:*
+- *The system focuses strictly on **adult subjects, 18 and above**, under institutional ethical protocols. Every submission requires the investigator to attest that the subject is an adult and that they are authorized.*
+- *It works on **static facial images**, comparing a suspect image with a paired authentic reference portrait of the same person.*
+- *It is an **end-to-end prototype**: preprocessing, feature fusion, human verification, and PDF reporting.*
 
-`[P4]` *This is the core of our human-in-the-loop design.*
-- *Left: the aligned **face crops** only. The full images are **pixelated** by default. This is our redaction protocol.*
-- *Right, in blue, marked **AUTOMATED**: the AI's preliminary classification, confidence, the three similarity metrics, and the aggregated score S compared with the threshold τ.*
-  - `[P4 reads the actual values on screen: classification, confidence, S, τ.]`
+*Our **delimitations**:*
+- ***Material depicting minors is completely excluded.** This is an absolute legal prohibition.*
+- ***Audio and full video are outside our scope**. We analyze still images only.*
+- *We use a **single-reviewer workflow**: one analyst reviews each case. Multi-rater consensus is left for future deployment.*
+- *The AI analyzes the **facial region only**. It is designed to detect face swaps and face manipulation, which is how most pornographic deepfakes are made. Manipulation of the body or background is not analyzed by the AI; the analyst checks it when reviewing the full image.*
 
-`[P3]` Click **Reveal full image** on the suspect → confirm.
+> The last bullet is **not on the slide yet**. Add it (see Slide fixes).
 
-`[P4]` *If the analyst needs to see the full image, they must reveal it deliberately. Only analysts can do this, and each reveal is written to the audit log with the analyst's ID and time.*
+---
 
-`[P3]` In the green **HUMAN-VERIFIED** section, choose the decision:
-- If the AI said **Real** → choose **Override** (final becomes Deepfake).
-- If the AI said **Deepfake** → choose **Confirm**.
+## Slide 8 · Theoretical Framework — ⏱ 23:00–26:30 · *Charles*
 
-`[P3]` First type something short (e.g. "fake") and click submit to show the error.
+*Our study rests on three theories.*
 
-`[P4]` *A rationale is mandatory, at least 30 characters, checked both in the browser and on the server. The analyst must justify the decision.*
+*First, **Signal Detection Theory**. It gives us the statistical basis for separating a "signal", an authentic face, from "noise", generative artefacts, using a decision threshold. In our system this threshold is τ: if the aggregated similarity score is at least τ, the image is classified as Real; otherwise as Deepfake. SDT is also why we evaluate with ROC-AUC, which measures performance across all possible thresholds.*
 
-`[P3]` Type the rationale, e.g. for Override:
+*Second, the **GAN framework** of Goodfellow and colleagues, 2014. A generator and a discriminator compete, and that process leaves subtle traces: blending boundaries, texture inconsistencies, lighting mismatches. These are the artefacts our CNN branch is designed to capture.*
+
+*Third, the **Transformer attention mechanism** of Vaswani and colleagues, 2017. Self-attention models long-range relationships across distant parts of the face, for example whether the eyes, nose and jawline are structurally consistent with each other. A CNN, which looks at local regions, can miss these. This is why we pair the CNN with a Transformer.*
+
+---
+
+## Slide 9 · Conceptual Framework — ⏱ 26:30–29:30 · *Tristan*
+
+*Our conceptual framework has four stages: Input, Process, Human Review, and Output.*
+
+*In the **Input** stage, the investigator submits the suspect image together with a verified authentic reference portrait of the same adult subject.*
+
+*In the **Process** stage, MTCNN aligns the faces, then EfficientNet-B4 extracts local features and the Transformer extracts global attention features in parallel. The system then computes three similarity metrics.*
+
+*The **Human Review** stage is what makes our system different. A forensic specialist evaluates the model's confidence and similarity evidence, then confirms, overrides, or flags the case, and must write down their reasoning.*
+
+*In the **Output** stage, the system produces an auditable forensic report that presents the algorithm's metrics and the reviewer's determination **side by side but clearly separated**, so no one can mistake the AI's preliminary result for the human's conclusion.*
+
+---
+
+## Slide 10 · System Architecture — ⏱ 29:30–33:30 · *Tristan*
+
+*Here is the architecture, module by module.*
+
+- *The **Preprocessing Module** uses MTCNN to detect the face, align it so the eyes are level, crop it, resize it to 380 by 380 pixels, the native input size of EfficientNet-B4, and normalize it. This is done for both the suspect and the reference image. If no face is detected, the system refuses to analyze the case rather than guess.*
+- *The **EfficientNet-B4 backbone** produces F1, a 1,792-value feature vector that captures fine-grained texture anomalies and blending artefacts.*
+- *The **Vision Transformer branch** produces F2 from the same face. It captures global relationships across facial landmarks. One technical detail: the Transformer splits the image into 16-by-16 patches, so inside this branch only, the face is resized to 384 by 384, since 380 is not divisible by 16.*
+- *In **Feature Fusion and Multi-Metric Scoring**, F1 and F2 are combined into one 512-value embedding. We compare the suspect's embedding with the reference's using cosine similarity and Euclidean distance, and we compare the two aligned face images directly with SSIM.*
+- *Finally, **Human Review and Report Generation**: the scores are shown on the analyst's dashboard, the analyst's decision is logged, and the system generates a PDF forensic report.*
+
+---
+
+## Slide 11 · Methodology & Sequential Steps — ⏱ 33:30–36:00 · *Tristan*
+
+*From the user's point of view, the process takes six steps.*
+
+*Step 1, the investigator uploads the suspect image and an authentic reference image through the web interface. Step 2, MTCNN preprocesses both faces. Step 3, EfficientNet-B4 and the Vision Transformer extract features in parallel. Step 4, the system computes cosine similarity and Euclidean distance between the embeddings, and SSIM between the aligned face images. Step 5, the case goes into a queue, where a forensic analyst confirms, overrides, or flags the classification with notes. Step 6, the system exports the forensic report combining the AI metrics and the analyst's determination.*
+
+*The next slide shows the formal algorithm.*
+
+---
+
+## Slide 12 · Algorithm Overview — ⏱ 36:00–40:00 · *Tristan*
+
+*This is our VERIFY_MEDIA procedure. Its inputs are the suspect image I, the reference R, and the threshold τ.*
+
+- *Lines 2 and 3 are preprocessing: MTCNN detection and alignment, then resizing to 380 by 380 and normalization. The reference image goes through the same steps.*
+- *Lines 4 and 5 run the two branches: EfficientNet-B4 gives F1, the Vision Transformer gives F2.*
+- *Line 6 fuses them into one embedding.*
+- *Lines 7 to 9 compute the three metrics. Cosine similarity measures the angle between the two embeddings. Euclidean distance measures how far apart they are, and we convert it to a similarity, 1 minus d over 2, so that higher always means more similar. SSIM measures the structural similarity of the two aligned face images.*
+- *Line 10 combines them into one aggregated score S, a weighted sum with equal weights of one-third by default.*
+- *Lines 11 to 15 apply the threshold: if S is at least τ, 0.70 by default, the preliminary classification is Real; otherwise, Deepfake. The system also computes a confidence score based on how far S is from τ.*
+- *Line 16 is the human-in-the-loop review: the analyst gives the final decision D and the rationale.*
+- *Line 17 generates the forensic report, and line 18 returns the decision, the score, and the report.*
+
+*Lines 2 to 15 run automatically when a case is submitted. Lines 16 and 17 happen only when the analyst acts. The AI's classification C is never the final answer; the analyst's decision D is.*
+
+> **Fix Slide 12 before the defense** so it matches this narration (line 9 SSIM, line 8 conversion). See Slide fixes.
+
+---
+
+## Slide 13 · Datasets, Training & Evaluation — ⏱ 40:00–42:30 · *Mark*
+
+*For training and evaluation we use three benchmark datasets: **FaceForensics++, Celeb-DF, and DFDC**, obtained through their official request forms. Together they cover several deepfake generation methods, which helps the model generalize.*
+
+*For **training**, we start from pre-trained ImageNet weights to save computation, and we apply flipping, rotation, and scaling augmentation to reduce overfitting. The model is trained on Google Colab's GPU, with early stopping based on validation ROC-AUC. We then calibrate the threshold τ on the validation set.*
+
+*Our **evaluation has two parts**. For the machine classification, we measure accuracy, precision, recall, F1-score, and ROC-AUC, and compare our hybrid model with an XceptionNet baseline. For human–AI agreement, we measure the agreement rate and Cohen's kappa between the AI's preliminary classification and the analyst's final decision.*
+
+*Now let us show you the system working.*
+
+---
+
+## LIVE DEMONSTRATION — ⏱ 42:30–55:00 · *Alexander drives · Mark narrates*
+
+> Use **only** the NASA demo images in `demo\samples\` (public-domain, non-explicit).
+> Before the defense, follow the **checklist** at the end. Start with fresh data so the case is CASE-0001.
+
+### D1 · Introduce the prototype (42:30–43:30)
+*Mark:* *Our prototype runs locally on this laptop, on the CPU. It is built with Python, PyTorch, Flask, and ReportLab for the PDF reports.*
+
+*(If the red banner shows:)* *The red banner reads "UNTRAINED MODEL: results not indicative of real accuracy." Our system displays this whenever the fine-tuned weights have not been loaded, on every page and in every report, so that no one relies on an unvalidated AI result.*
+
+*Mark:* *For this demonstration we use a public-domain NASA portrait, not explicit material. Our AI analyzes only the face region, so the process is identical, and our ethics protocol forbids showing explicit material outside authorized casework.*
+
+### D2 · Investigator submits a case (43:30–46:30)
+*Alexander:* logs in as **INV-01** → **Submit case** → Suspect `suspect_manipulated.png`, Reference `reference.png`.
+
+*Mark:* *We are logged in as an investigator. The suspect image has a synthetic edit to the inner face region; the reference is the original portrait of the same person.*
+
+*Alexander:* points at the checkbox, ticks it.
+
+*Mark:* *Every submission requires this attestation: that the subject is an adult and that the investigator is authorized. This enforces our scope.*
+
+*Alexander:* clicks **Submit for analysis**.
+
+*Mark:* *Right now the system computes a SHA-256 hash of each file for chain of custody, then runs our algorithm, lines 2 to 15: face detection, both neural branches, fusion, the three metrics, and the preliminary classification.*
+
+*Alexander:* shows **My cases**.
+
+*Mark:* *The case is **Pending**. Notice that the investigator does not see the AI's result. Nothing is final until an analyst reviews it.*
+
+### D3 · No face = no analysis (46:30–47:30)
+*Alexander:* submits `no_face.png` + `reference.png`.
+
+*Mark:* *If no face is detected, the system does not guess: "No face detected. Case cannot be analyzed." The rejection is still recorded in the audit log.*
+
+### D4 · Analyst dashboard (47:30–48:30)
+*Alexander:* logs out → logs in as **ANA-01**.
+
+*Mark:* *Now we are the forensic analyst. The dashboard shows how many cases are pending, verified, and flagged, and the live agreement rate between the AI and the analysts.*
+
+### D5 · Review interface, objective 3 (48:30–52:30)
+*Alexander:* clicks **Review**.
+
+*Mark:* *This is the core of our study.*
+- *On the left are only the **aligned face crops**. The full images are **pixelated** by default. This protects sensitive material.*
+- *On the right, in blue and labeled **AUTOMATED**, is the AI's preliminary analysis: the classification, the confidence, the three similarity metrics, and the aggregated score S against τ.* *(Read the actual values on screen.)*
+
+*Alexander:* clicks **Reveal full image** → confirms.
+
+*Mark:* *If the analyst must see the full image, they reveal it deliberately. Only analysts can do this, and every reveal is logged with their ID and the time.*
+
+*Alexander:* in the green **HUMAN-VERIFIED** section, chooses:
+- AI said **Real** → **Override** · AI said **Deepfake** → **Confirm**.
+
+*Alexander:* types "fake" and clicks submit.
+
+*Mark:* *A rationale is mandatory, at least 30 characters. The analyst must justify every decision.*
+
+*Alexander:* types the rationale (Override example):
 > Although the AI scored the image as Real, the inner face region shows warping around the eyes and nose bridge, and its colour saturation differs from the forehead and neck. These localized distortions are inconsistent with the reference image. Overriding to Deepfake.
 
-`[P3]` Submit.
+…and submits.
 
-`[P4]` *(If it was an override:) This is exactly why human review matters. The AI's preliminary result was wrong, and the analyst corrected it with documented reasoning.*
+*Mark (if Override):* *This is exactly why human review matters. The AI's preliminary result was wrong, and the analyst corrected it, with the reasoning on record. This is line 16 of our algorithm.*
 
-### 6 · Forensic report (43:30 – 45:30)
-`[P3]` The report page opens. Scroll slowly.
-
-`[P4]` *This follows our Appendix B template:*
-- *Section I: case information: who submitted, who reviewed.*
-- *Section II: only **blurred** face crops, plus the SHA-256 hashes.*
+### D6 · Forensic report (52:30–54:00)
+*Mark:* *This is line 17, the forensic report.* (Scroll slowly.)
+- *Section I, case information: who submitted and who reviewed.*
+- *Section II: only **blurred** face crops, with the SHA-256 hashes.*
 - *Section III, in blue: the **AUTOMATED** AI analysis, labeled as preliminary and not a verdict.*
-- *Section IV, in green: the **HUMAN-VERIFIED** conclusion: decision, final classification and rationale.*
+- *Section IV, in green: the **HUMAN-VERIFIED** conclusion: decision, final classification, and rationale.*
 - *Section V: the analyst's sign-off.*
 
-`[P3]` Click **Download PDF** and open it.
+*Alexander:* clicks **Download PDF**, shows it.
 
-`[P4]` *The same report is available as a PDF for case files. The case is now read-only; its review cannot be changed.*
+*Mark:* *The case is now read-only; the review can no longer be changed.*
 
-### 7 · Admin: evaluation and audit log (45:30 – 47:00)
-`[P3]` Log out → log in as **ADM-01** → **Evaluation**.
+### D7 · Admin: evaluation and audit log, objective 4 (54:00–55:00)
+*Alexander:* logs in as **ADM-01** → **Evaluation** → **Audit log**.
 
-`[P4]` *The admin's evaluation page computes the agreement rate and Cohen's kappa between AI and analyst decisions, directly from the case records. These are the human-AI metrics from Section 3.7.*
+*Mark:* *The administrator's evaluation page computes the agreement rate and Cohen's kappa from the case records. And this is the append-only audit log: logins, submissions, rejections, image reveals, reviews, and report downloads, each with the user and time. That concludes our demonstration.*
 
-`[P3]` Click **Audit log**.
-
-`[P4]` *And this is the append-only audit log: every login, submission, rejection, image reveal, review and report download, with the user and timestamp. Administrators can also securely purge cases for data retention, and that deletion is logged too.*
-
-*That concludes our demonstration.*
-
-> **Backup plan:** if the app or laptop fails, open `docs\walkthrough\` and present the screenshots in order (01 → 13) plus `CASE-0002_forensic_report.pdf`, using the same narration.
+> **Backup:** if anything fails, open `docs\walkthrough\` and show screenshots 01 → 13 plus the sample PDF, with the same narration. Don't troubleshoot live for more than 30 seconds.
 
 ---
 
-## 47:00 – 54:00 · Testing, Results and Limitations `[P4]`
+## Slide 14 · Synthesis and Core Contributions — ⏱ 55:00–58:00 · *Mark*
 
-**Slide: System testing** (≈1.5 min)
-- *The system has 95 automated tests covering the similarity formulas, the classifier, the manual Cohen's kappa (checked against scikit-learn), the review workflow, access control, and a full end-to-end run from submission to PDF report. All 95 pass.*
+*To synthesize, our study makes three contributions.*
 
-**Slide: Detection results (Chapter 4)** (≈2.5 min)
-- `[PLACEHOLDER: comparison table from evaluation/results/comparison.md: accuracy, precision, recall, F1, ROC-AUC for the hybrid model vs XceptionNet.]`
-- `[PLACEHOLDER: confusion matrix and ROC curve images from evaluation/results/.]`
-- `[PLACEHOLDER: calibrated τ from calibrate_threshold.py.]`
-- **If training is not finished:** say so directly. *"The prototype and evaluation pipeline are complete; detection results will be produced after training on the requested datasets."* Do not present results from the untrained model as findings.
+*First, **domain specialization**: a digital forensic pipeline designed specifically to detect and document non-consensual explicit deepfake imagery, with ethics built into the software: the adults-only attestation, redacted views, logged reveals, and an audit trail.*
 
-**Slide: Human–AI agreement** (≈1 min)
-- `[PLACEHOLDER: agreement rate, κ, and confirm / override / flag counts from your analyst evaluation.]`
+*Second, **hybrid multi-metric robustness**: we combine local CNN texture features, global Transformer attention, and three similarity metrics, instead of relying on a single model or a single score.*
 
-**Slide: Limitations** (≈2 min)
-- The AI analyzes the **face only**; body or background edits rely on the analyst.
-- Training datasets are non-explicit; performance on explicit images may differ (**domain gap**).
-- SSIM is sensitive to pose and lighting differences between suspect and reference; τ calibration reduces this.
-- A face-swap using the victim's own face can look similar to the reference, so detection depends on the trained model's sensitivity to artefacts, which is another reason for human review.
-- Local prototype: no production deployment or scaling.
+*Third, **defensible reporting**: every case requires a human review with a written rationale, and the report keeps the AI's automated analysis separate from the analyst's verified conclusion, a structured, auditable record designed to support forensic and legal review.*
 
 ---
 
-## 54:00 – 58:00 · Conclusions and Recommendations `[P1]`
+## Slide 15 · Thank You — ⏱ 58:00–60:00 · *Alexander*
 
-**Slide: Conclusions**
-- `[PLACEHOLDER: one conclusion per specific objective, based on your actual results.]`
-- *Our study shows that a hybrid CNN–Transformer pipeline can be combined with a structured human-in-the-loop workflow, so that the AI supports the analyst without replacing them, and the final report clearly separates automated from human-verified findings.*
+*In summary: deepfakes, especially non-consensual pornographic deepfakes, cause serious harm, and automated detection alone is not enough when the result may be used as evidence. Our system lets AI do what it does well, analyzing facial features at scale, while a trained human analyst makes the final, documented decision.*
 
-**Slide: Recommendations**
-- Train and test on larger and more diverse datasets, including authorized domain-specific data under formal ethics approval.
-- Extend to video deepfakes.
-- Add detection of body and background manipulation.
-- Let flagged cases be reopened and resolved after further investigation.
-- Deploy on a secured server with encryption at rest and multi-factor authentication.
-- Conduct a user study with actual forensic analysts to measure agreement and usability.
+*Thank you very much for your time and attention. We are now open to the panel's questions.*
 
 ---
 
-## 58:00 – 60:00 · Closing `[P1]`
+## Slide fixes before the defense
 
-*To summarize: deepfakes, especially non-consensual pornographic deepfakes, cause serious harm, and automated detection alone is not enough for forensic use. Our system combines a hybrid CNN–Transformer model with multi-metric similarity scoring and, most importantly, a trained human analyst who makes the final, documented decision.*
+These are places where the **slides don't match the system** or **claim more than a prototype can**. A panel comparing your slides to the demo could ask about them.
 
-*Thank you for your time and attention. We are now ready for your questions.*
+### Must fix (technical mismatches)
+
+| Slide | Current text | Problem | Suggested change |
+|---|---|---|---|
+| 12, line 9 | `Score_SSIM ← Calculate_SSIM_Index(F_fused, R)` | SSIM is a 2-D image measure and cannot be computed on an embedding vector. The system computes it on the aligned face crops. | `Score_SSIM ← Calculate_SSIM_Index(I_aligned, R_aligned)  // structural similarity of aligned face crops` |
+| 12, line 8 | `Score_Euc ← Compute_Euclidean_Distance(F_fused, R)` | A *distance* grows as images differ, so adding it to S would push fakes toward "Real". The system converts it. | `Score_Euc ← 1 − EuclideanDistance(F_fused, R_fused) / 2  // distance converted to similarity` |
+| 12, header | `Reference Tensor (R), Forensic Threshold (T)` | The procedure uses τ, not T; R is the reference *image*, processed by the same lines 2–6. | `// Input: Suspect Image (I), Reference Image (R), Threshold (τ)` and add a note: *lines 2–6 are also applied to R* |
+| 12, line 6 | `Concatenate_Vectors(F_1, F_2)` | The system also projects to 512 values (Linear → LayerNorm) and L2-normalizes. | Optional: `F_fused ← L2Norm(Project(Concatenate(F_1, F_2)))` |
+| 11, step 4 | "…SSIM between suspect and reference embeddings" | Same SSIM issue. | "…Cosine Similarity and Euclidean Distance between the embeddings, and SSIM between the aligned face images" |
+| 7 | (missing) | The AI analyzes the face only; the panel may ask about body-only edits. | Add a delimitation: **"Facial Region Only: the AI analyzes the facial region; body or background manipulation is assessed by the analyst."** |
+
+The confidence score is also computed next to lines 11–15. You can add it as a line or just mention it verbally, as in the script.
+
+### Should soften (overclaims)
+
+The model isn't trained or validated yet, and it's a prototype. Words like *certified*, *binding*, *guarantee* and *ready for judicial scrutiny* invite a hard question ("has a court accepted it?").
+
+| Slide | Current | Safer |
+|---|---|---|
+| 5 | "generate certified reports" | "generate structured forensic reports" |
+| 6 | "capable of withstanding scrutiny in formal legal proceedings" | "designed to support scrutiny in formal proceedings" |
+| 9 | "reviewer's certified determination" | "reviewer's verified determination" |
+| 11 | "analyst's binding determination" | "analyst's final determination" |
+| 13 | "to guarantee robust generalization" | "to improve generalization" |
+| 14 | "reports ready for judicial scrutiny" | "reports designed to support forensic and legal review" |
+
+### Consider adding
+- A **"System Demonstration"** divider slide between 13 and 14, so the switch to the laptop feels planned.
+- If this is your **final** defense (not the proposal): a **Results** slide (comparison table, confusion matrix, ROC curve from `evaluation/results/`) and a **Limitations / Recommendations** slide. The panel will expect Chapter 4 results. Only show results from the trained model.
 
 ---
 
 ## Pre-defense checklist
 
 **The day before**
-- [ ] `git pull`, then `.venv\Scripts\activate` and `python -m pytest` → **95 passed**.
+- [ ] In VS Code: `git pull`, `.venv\Scripts\activate`, `python -m pytest` → **95 passed**.
 - [ ] Run one full case so the ImageNet weights are downloaded and cached.
-- [ ] Start with a clean slate: stop the app, **rename** the `data` folder to `data_practice` (keeps your practice cases), then run `python seed_users.py --password <your demo password>` and `python demo/make_demo_samples.py`. The demo case will then be CASE-0001.
-- [ ] Rehearse the demo block twice with a timer (target: 15 minutes).
+- [ ] Fresh demo data: stop the app, **rename** the `data` folder to `data_practice`, then run `python seed_users.py --password <demo password>` and `python demo/make_demo_samples.py`.
+- [ ] Rehearse the full 60 minutes once and the demo twice (target: 12½ minutes).
 - [ ] Charge the laptop, and bring an HDMI adapter and a phone hotspot (the page styling loads from the internet).
 
 **30 minutes before**
-- [ ] Activate `.venv`, run `flask --app app run`, open Chrome at http://127.0.0.1:5000.
-- [ ] Open `demo\samples\` in File Explorer for quick file picking.
-- [ ] Open `docs\walkthrough\` as the backup.
-- [ ] Zoom the browser to about 125% so the panel can read it.
-- [ ] Close unrelated apps and turn off notifications.
+- [ ] `.venv\Scripts\activate` → `flask --app app run` → Chrome at http://127.0.0.1:5000.
+- [ ] Open `demo\samples\` in File Explorer; keep `docs\walkthrough\` ready as the backup.
+- [ ] Zoom the browser to about 125%. Close unrelated apps and turn off notifications.
 
 ---
 
-## Likely panel questions (quick answers)
+## Likely panel questions
 
 | Question | Short answer |
 |---|---|
-| Why does the system say "UNTRAINED MODEL"? | Fine-tuned weights aren't loaded yet; the system flags this on every page and report so no one relies on the AI result (Section 3.9 limitation). |
-| Why not let the AI decide? | Forensic decisions have legal consequences; the AI can be wrong (as shown in the demo); the analyst provides accountability through a documented rationale. |
-| Why demo with non-explicit images? | The AI only analyzes the face crop, so the pipeline is identical; our ethics protocol forbids explicit material outside authorized casework. |
+| Why "UNTRAINED MODEL"? | Fine-tuned weights aren't loaded yet; the system states this on every page and report so no one relies on the AI (a stated limitation). |
+| Why not let the AI decide? | Wrong results have legal consequences; the demo showed the AI can be wrong; the analyst provides accountability through a documented rationale. |
+| Why non-explicit demo images? | The AI analyzes only the face crop, so the pipeline is identical; our ethics protocol forbids explicit material outside authorized casework. |
 | What if only the body is edited? | Outside the AI's scope (face only); the analyst reviews the full image and can override or flag. |
-| Why SSIM on face crops, not embeddings? | SSIM is a spatial measure that needs 2-D image data. |
-| Why resize to 384 in the ViT branch? | Patch-16 ViTs need an input size divisible by 16; 380 is not. |
-| How was τ = 0.70 chosen? | Default from our design; calibrated on the validation set by maximizing F1 (or Youden's J). `[PLACEHOLDER: your calibrated value.]` |
+| Why SSIM on face crops? | SSIM compares 2-D image structure; it can't be computed on a 1-D embedding. |
+| Why 384 for the ViT? | Patch-16 Transformers need an input size divisible by 16; 380 isn't. |
+| How is τ = 0.70 chosen? | Default; calibrated on the validation set by maximizing F1 or Youden's J. |
+| Your datasets aren't pornographic. Does it generalize? | Face-swap artefacts occur in the face region regardless of the rest of the image; the domain gap is acknowledged as a limitation. |
+| Why single reviewer? | Delimitation (Slide 7); multi-rater consensus is future work. |
 | Why are flagged cases excluded from κ? | "Inconclusive" isn't a class the AI can output; flags are reported separately. |
-| How do you protect evidence? | SHA-256 hashes, storage outside public folders, role-based access, blurred views, logged reveals, audit log, secure purge. |
+| How is evidence protected? | SHA-256 hashes, storage outside public folders, role-based access, blurred views, logged reveals, audit log, secure purge. |
