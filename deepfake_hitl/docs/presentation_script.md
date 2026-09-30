@@ -413,7 +413,7 @@ The model isn't trained or validated yet, and it's a prototype. Words like *cert
 - [ ] Confirm the panelists' names and titles for the call to order.
 
 **30 minutes before**
-- [ ] `.venv\Scripts\activate` → `flask --app app run` → Chrome at http://127.0.0.1:5000.
+- [ ] Double-click **`start.bat`** (or run `.venv\Scripts\activate` → `python run.py`). The login page opens in the browser automatically; if it opens in the wrong browser, copy the link into Chrome.
 - [ ] Open `demo\samples\` in File Explorer; keep `docs\walkthrough\` ready as the backup.
 - [ ] Zoom the browser to about 125%. Close unrelated apps and turn off notifications.
 - [ ] Put phones on silent. Have water ready for the speakers.

@@ -43,8 +43,15 @@ It still runs, and it is flagged as untrained.
 
 ```bash
 python seed_users.py                 # or: flask --app app seed-users
-flask --app app run                  # http://127.0.0.1:5000
+python run.py                        # starts the app AND opens http://127.0.0.1:5000/login in your browser
 ```
+
+**Windows shortcut:** double-click **`start.bat`** in the `deepfake_hitl` folder. It activates `.venv`, starts
+the app and opens the browser. Close the black window (or press Ctrl+C in it) to stop the app.
+`flask --app app run` still works if you prefer to open the link yourself.
+
+The address is `http://` (not `https://`) because the app runs only on your own computer (127.0.0.1);
+nothing is sent over the network.
 
 | User ID | Role | Default password |
 |---|---|---|
