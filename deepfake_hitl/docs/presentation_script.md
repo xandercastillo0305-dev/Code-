@@ -1,10 +1,10 @@
-# Presentation & Demo Script — 60 minutes
+# Thesis Defense Script — Full 2-Hour Flow
 
 **"Deepfake Detection for Pornographic Images with Human-in-the-Loop"**
 National University • CCIT • Adviser: Ms. Susan S. Caluya
 
 > **How to use this script**
-> - It follows your 15-slide deck, with the **live demo inserted after Slide 13**.
+> - It covers the whole defense: call to order, prayer, the 60-minute presentation (your 15 slides, with the **live demo after Slide 13**), the 45-minute Q&A, and the panel deliberation.
 > - **Tristan (leader)** opens, presents the conceptual framework, closes, and leads the Q&A. Each member owns one continuous block, and every block ends with a hand-off line naming the next speaker.
 > - *Italics* = say it out loud. You can paraphrase; don't read the slide word for word.
 > - ⏱ = cumulative time. Speaking pace is about 120–130 words per minute. Rehearse with a timer.
@@ -12,7 +12,45 @@ National University • CCIT • Adviser: Ms. Susan S. Caluya
 
 ---
 
-## Time plan
+## Defense day flow (2 hours)
+
+| Clock | Segment | Duration | Who |
+|---|---|---|---|
+| 0:00 – 0:02 | Call to order | 2 min | Panel chair / moderator (Tristan, if the group is asked to) |
+| 0:02 – 0:05 | Opening prayer | 3 min | Genesis leads |
+| 0:05 – 1:05 | Presentation and system demonstration | 60 min | All five members (see the time plan below) |
+| 1:05 – 1:50 | Question and answer | 45 min | Tristan moderates · everyone answers |
+| 1:50 – 2:00 | Panel deliberation | 10 min | Panel only; the group waits outside |
+
+**Before the call to order**, the laptop must already be connected to the projector, the app running, and the deck on Slide 1. Nothing should be set up during the prayer or while the panel is waiting.
+
+### Call to order (2 min)
+
+This is normally done by the panel chair or the program moderator. If your group is asked to do it, **Tristan** says:
+
+*Good [morning/afternoon], everyone. We now call to order the thesis defense of the group presenting "Deepfake Detection for Pornographic Images with Human-in-the-Loop," under the advisership of Ms. Susan S. Caluya. We are honored to have with us our panel members: [Panelist 1], [Panelist 2], and [Panelist 3]. To begin, may we request everyone to please stand for the opening prayer, to be led by Genesis Navarro.*
+
+### Opening prayer (3 min) · *Genesis*
+
+Use your school's usual prayer if there is one. Otherwise, a sample:
+
+*Let us bow our heads and put ourselves in the presence of the Lord.*
+
+*Heavenly Father, we thank You for this day and for the chance to present the work we have prepared. Thank You for our adviser, Ms. Susan Caluya, for our panel members, and for everyone who guided and supported us throughout this study.*
+
+*Grant us clear minds and calm hearts, so that we may explain our research truthfully and answer every question with humility and understanding. Give our panel wisdom and fairness as they evaluate our work. May this study serve its purpose: to help protect people, especially victims, from the harm of manipulated images.*
+
+*We offer all of this to You, and we ask for Your guidance today and always. Amen.*
+
+*You may now take your seats.*
+
+After the prayer, **Tristan** goes straight to Slide 1.
+
+---
+
+## Presentation time plan (the 60-minute block)
+
+The ⏱ times on each slide count from the start of the presentation: **0:00 = Tristan begins Slide 1, right after the prayer** (about 0:05 on the defense clock).
 
 | Time | Slide(s) | Speaker |
 |---|---|---|
@@ -370,40 +408,123 @@ The model isn't trained or validated yet, and it's a prototype. Words like *cert
 - [ ] Fresh demo data: stop the app, **rename** the `data` folder to `data_practice`, then run `python seed_users.py --password <demo password>` and `python demo/make_demo_samples.py`.
 - [ ] Rehearse the full 60 minutes once and the demo twice (target: 12½ minutes).
 - [ ] Charge the laptop, and bring an HDMI adapter and a phone hotspot (the page styling loads from the internet).
+- [ ] Print or save the manuscript PDF on the laptop, for checking page numbers during Q&A.
+- [ ] Genesis brings a notebook and pen for recording the panel's comments.
+- [ ] Confirm the panelists' names and titles for the call to order.
 
 **30 minutes before**
 - [ ] `.venv\Scripts\activate` → `flask --app app run` → Chrome at http://127.0.0.1:5000.
 - [ ] Open `demo\samples\` in File Explorer; keep `docs\walkthrough\` ready as the backup.
 - [ ] Zoom the browser to about 125%. Close unrelated apps and turn off notifications.
+- [ ] Put phones on silent. Have water ready for the speakers.
+- [ ] Deck open on Slide 1, and the projector tested, **before** the call to order.
 
 ---
 
-## Q&A plan (led by Tristan)
+## Question and answer — 45 minutes (led by Tristan)
 
-- **Tristan** receives each question, repeats it briefly if needed, and passes it to the member who presented that part. Tristan answers overall-design and scope questions directly.
-- The assigned member answers. Others may add **one** point only if Tristan invites them.
-- If nobody is sure, don't guess: *"That is a valid point; we will verify it and include it in our revisions."*
+### Roles during Q&A
+
+| Member | Role |
+|---|---|
+| **Tristan** | **Moderator.** Receives each question, repeats it briefly if unclear, and passes it to the right member. Answers overall-design and scope questions. Watches the time. |
+| **Genesis** | **Scribe.** Writes down every question, comment and suggested revision, with the panelist's name. These notes become your revision list. Still answers their own topics. |
+| **Alexander** | **System operator.** Keeps the app open and logged in, ready if a panelist says "show me…". |
+| **Charles** and **Mark** | Answer their topics; keep the slide deck ready to jump to Slides 7, 10, 12 or 13. |
 
 | Question topic | Answered by |
 |---|---|
-| Background, problem, motivation, statistics | Genesis |
+| Background, problem, motivation, statistics, related studies | Genesis |
 | Objectives, significance, scope and delimitations, theories | Charles |
-| Overall design, human-in-the-loop, ethics, conceptual framework | Tristan |
-| Architecture, algorithm, formulas, datasets, training, metrics | Mark |
-| How the prototype works, code, security features, "UNTRAINED MODEL" banner | Alexander |
+| Overall design, human-in-the-loop, ethics, conceptual framework, future work | Tristan |
+| Architecture, algorithm, formulas, datasets, training, evaluation metrics | Mark |
+| How the prototype works, code, security features, the "UNTRAINED MODEL" banner | Alexander |
 
-## Likely panel questions
+### How to answer
 
-| Question | Short answer |
+1. **Listen to the whole question.** Don't start answering while the panelist is still talking.
+2. **Start with thanks or agreement**: *"Thank you for the question, sir/ma'am."*
+3. **Answer in 30–90 seconds.** State the answer first, then one reason or example. Point to the chapter or slide if it helps: *"As shown in our algorithm, line 9…"*
+4. **Don't argue or overclaim.** If a panelist suggests a change, accept it: *"Thank you, we will include that in our revisions."* Genesis writes it down.
+5. **If you don't know,** don't guess: *"That is a valid point. We have not tested that yet; we will verify it and include it in our revisions."*
+6. **Only one member answers each question.** Others add one point only if Tristan invites them.
+7. **If a panelist asks to see the system,** Tristan says *"Alexander will show it,"* and Alexander logs in as the needed role (INV-01 / ANA-01 / ADM-01).
+
+**Pacing:** 45 minutes is usually 12–20 questions. If one topic drags on, Tristan can say: *"If we may, we will expand on that in our revised manuscript."*
+
+**Closing the Q&A (Tristan), when the chair ends it:**
+*Thank you very much to our panel for your questions and suggestions. We have noted all of them and will incorporate them in our revisions.*
+
+### Question bank
+
+**Genesis: background and problem**
+
+| Question | Suggested answer |
 |---|---|
-| Why "UNTRAINED MODEL"? | Fine-tuned weights aren't loaded yet; the system states this on every page and report so no one relies on the AI (a stated limitation). |
-| Why not let the AI decide? | Wrong results have legal consequences; the demo showed the AI can be wrong; the analyst provides accountability through a documented rationale. |
-| Why non-explicit demo images? | The AI analyzes only the face crop, so the pipeline is identical; our ethics protocol forbids explicit material outside authorized casework. |
-| What if only the body is edited? | Outside the AI's scope (face only); the analyst reviews the full image and can override or flag. |
-| Why SSIM on face crops? | SSIM compares 2-D image structure; it can't be computed on a 1-D embedding. |
-| Why 384 for the ViT? | Patch-16 Transformers need an input size divisible by 16; 380 isn't. |
-| How is τ = 0.70 chosen? | Default; calibrated on the validation set by maximizing F1 or Youden's J. |
-| Your datasets aren't pornographic. Does it generalize? | Face-swap artefacts occur in the face region regardless of the rest of the image; the domain gap is acknowledged as a limitation. |
-| Why single reviewer? | Delimitation (Slide 7); multi-rater consensus is future work. |
-| Why are flagged cases excluded from κ? | "Inconclusive" isn't a class the AI can output; flags are reported separately. |
-| How is evidence protected? | SHA-256 hashes, storage outside public folders, role-based access, blurred views, logged reveals, audit log, secure purge. |
+| Why focus on pornographic deepfakes? | It is among the most harmful uses of deepfakes: victims suffer reputational, psychological and legal harm, and the content is often used for harassment or extortion. It also needs careful forensic handling. |
+| What makes your study different from existing detectors? | Most detectors give an automated final verdict. Ours combines a hybrid CNN–Transformer, three similarity metrics, and a mandatory human review, and the report keeps the AI analysis separate from the human decision. |
+| What is the harm of a false positive / false negative? | A false positive can wrongly accuse someone or dismiss a victim's genuine evidence; a false negative lets harmful content keep circulating. That is why an analyst reviews every case. |
+
+**Charles: objectives, scope and theory**
+
+| Question | Suggested answer |
+|---|---|
+| Why only adults? | Material depicting minors is under absolute legal prohibition and cannot be handled by a student prototype. The system enforces this with a required attestation on every submission. |
+| Why still images and not video? | Video needs temporal analysis across frames, which is outside our scope; video is in our recommendations. |
+| What if only the body is edited? | The AI analyzes the facial region only, so a body-only edit is outside its scope. The analyst reviews the full image and can override or flag the case. |
+| Why a single reviewer? | It's a delimitation for the prototype; multi-rater consensus is planned for later deployment. |
+| How is Signal Detection Theory applied? | Our threshold τ separates "authentic" from "manipulated" scores, and ROC-AUC measures performance across all thresholds. |
+
+**Tristan: design, human-in-the-loop and ethics**
+
+| Question | Suggested answer |
+|---|---|
+| Why not let the AI decide? | Forensic results can have legal consequences and the AI can be wrong, as shown in our demo. The analyst provides accountability through a documented rationale. |
+| What if the analyst is biased or wrong? | Every decision needs a written rationale, every action is in the audit log, and the AI analysis stays in the report, so reviewers can be audited. Multi-reviewer consensus is future work. |
+| What happens to flagged cases? | They are marked "Inconclusive" for further investigation, still get a report, and are counted separately in the evaluation. |
+| How do you protect the victims' privacy? | Face crops only by default, full images blurred or pixelated, logged reveals, role-based access, uploads outside public folders, and a secure purge for data retention. |
+| Why is the demo not using explicit images? | The AI analyzes only the face crop, so the process is identical; our ethics protocol forbids explicit material outside authorized casework. |
+
+**Mark: architecture, algorithm, data and metrics**
+
+| Question | Suggested answer |
+|---|---|
+| Why EfficientNet-B4 and not another CNN? | It is accurate for its size, and its native 380×380 input keeps fine facial detail where blending artefacts appear. |
+| Why add a Transformer? | Self-attention captures relationships across the whole face (structural consistency) that a local CNN can miss. |
+| Why resize to 384 in the ViT branch? | Patch-16 Transformers need an input size divisible by 16; 380 isn't. |
+| Why SSIM on face crops, not embeddings? | SSIM compares 2-D image structure (luminance, contrast, structure); it cannot be computed on a 1-D embedding. |
+| Why convert the Euclidean distance? | A distance increases as images differ; converting it to 1 − d/2 makes all three metrics "higher = more similar" before averaging. |
+| How was τ = 0.70 chosen? | It is the default; it is calibrated on the validation set by maximizing F1 or Youden's J. |
+| Why equal weights (⅓ each)? | Neutral default with no metric favored; the weights are configurable and can be tuned on validation data. |
+| Your datasets aren't pornographic. Does it generalize? | Face-swap artefacts appear in the face region regardless of the rest of the image, but we acknowledge a domain gap as a limitation. |
+| Why compare with XceptionNet? | It is the standard FaceForensics++ baseline. |
+| What is Cohen's kappa? | Agreement between the AI and the analyst beyond chance: κ = (pₒ − pₑ)/(1 − pₑ). |
+| What are your results? | *(If trained)* cite your Chapter 4 numbers. *(If not)* The pipeline is complete; results will follow training on the requested datasets. Never quote results from the untrained model. |
+
+**Alexander: the prototype**
+
+| Question | Suggested answer |
+|---|---|
+| Why does it say "UNTRAINED MODEL"? | Fine-tuned weights aren't loaded yet; the system states this on every page and report so no one relies on the AI (a stated limitation). |
+| How fast is it? | A few seconds per case on a normal laptop CPU; no GPU needed for the demo. Training is done on a Colab GPU. |
+| How do you ensure chain of custody? | A SHA-256 hash of each uploaded file is stored in the case record and shown in the report. |
+| Can the analyst change a decision later? | No. Reviewed cases are read-only. |
+| Who can delete data? | Only an admin, through a secure purge command that overwrites the files and logs the deletion. |
+| How was it tested? | 95 automated tests, covering the formulas, classifier, kappa, review workflow, access control, and a full submission-to-PDF run. |
+| What happens with an image without a face? | The system refuses to analyze it and records the rejection; it never guesses. |
+
+---
+
+## Panel deliberation — 10 minutes
+
+- When the chair asks, **the group leaves the room** (or waits quietly, as instructed). Leave the laptop and slides as they are unless told otherwise.
+- **Genesis** reads the notes to the group; everyone checks whether any comment was missed. Don't discuss loudly near the room.
+- Prepare questions to ask the panel afterwards, e.g. the deadline for revisions and who will check them.
+
+### When called back: after the verdict
+
+Listen to the verdict and the required revisions. Genesis keeps writing. Then **Tristan** says:
+
+*On behalf of our group, thank you very much to our panel for your time, your guidance, and your valuable suggestions. We accept the recommended revisions and will incorporate them in our manuscript and system. We also thank our adviser, Ms. Susan Caluya, for guiding us throughout this study. Thank you.*
+
+If anything about a revision is unclear, Tristan politely asks before leaving: *"May we clarify, sir/ma'am, regarding…"*
