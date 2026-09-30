@@ -5,7 +5,7 @@ National University • CCIT • Adviser: Ms. Susan S. Caluya
 
 > **How to use this script**
 > - It follows your 15-slide deck, with the **live demo inserted after Slide 13**.
-> - Speaker assignments are a suggestion. Swap them freely, but each person should own a whole block.
+> - **Tristan (leader)** opens, presents the conceptual framework, closes, and leads the Q&A. Each member owns one continuous block, and every block ends with a hand-off line naming the next speaker.
 > - *Italics* = say it out loud. You can paraphrase; don't read the slide word for word.
 > - ⏱ = cumulative time. Speaking pace is about 120–130 words per minute. Rehearse with a timer.
 > - Read **"Slide fixes before the defense"** at the end first. A few slide lines don't match the system and the panel could catch them.
@@ -16,40 +16,52 @@ National University • CCIT • Adviser: Ms. Susan S. Caluya
 
 | Time | Slide(s) | Speaker |
 |---|---|---|
-| 0:00 – 2:30 | 1 · Title | Alexander |
-| 2:30 – 5:00 | 2 · Chapter 1 Introduction | Alexander |
+| 0:00 – 2:30 | 1 · Title | **Tristan (leader)** |
+| 2:30 – 5:00 | 2 · Chapter 1 Introduction | Genesis |
 | 5:00 – 9:00 | 3 · Background of the Study | Genesis |
 | 9:00 – 13:00 | 4 · Statement of the Problem | Genesis |
-| 13:00 – 17:00 | 5 · Objectives of the Study | Genesis |
+| 13:00 – 17:00 | 5 · Objectives of the Study | Charles |
 | 17:00 – 19:30 | 6 · Significance of the Study | Charles |
 | 19:30 – 23:00 | 7 · Scope and Delimitations | Charles |
 | 23:00 – 26:30 | 8 · Theoretical Framework | Charles |
-| 26:30 – 29:30 | 9 · Conceptual Framework | Tristan |
-| 29:30 – 33:30 | 10 · System Architecture | Tristan |
-| 33:30 – 36:00 | 11 · Methodology & Sequential Steps | Tristan |
-| 36:00 – 40:00 | 12 · Algorithm Overview | Tristan |
+| 26:30 – 29:30 | 9 · Conceptual Framework | **Tristan (leader)** |
+| 29:30 – 33:30 | 10 · System Architecture | Mark |
+| 33:30 – 36:00 | 11 · Methodology & Sequential Steps | Mark |
+| 36:00 – 40:00 | 12 · Algorithm Overview | Mark |
 | 40:00 – 42:30 | 13 · Datasets, Training & Evaluation | Mark |
-| **42:30 – 55:00** | **Live system demonstration** | **Alexander drives · Mark narrates** |
-| 55:00 – 58:00 | 14 · Synthesis and Core Contributions | Mark |
-| 58:00 – 60:00 | 15 · Thank You | Alexander |
+| **42:30 – 55:00** | **Live system demonstration** | **Alexander** (Mark = backup operator) |
+| 55:00 – 58:00 | 14 · Synthesis and Core Contributions | **Tristan (leader)** |
+| 58:00 – 60:00 | 15 · Thank You + opens Q&A | **Tristan (leader)** |
 
-The demo is where time usually runs over. If you're behind, shorten Slides 6 and 8, never the demo.
+### Per-member summary
+
+| Member | Role | Slides | Speaking time |
+|---|---|---|---|
+| **Tristan Jhay O. Salamat** | Leader, opening, framework, closing, Q&A moderator | 1, 9, 14, 15 | ~10½ min |
+| Genesis F. Navarro | The problem | 2, 3, 4 | ~10½ min |
+| Charles N. Medio | Objectives, scope and theory | 5, 6, 7, 8 | ~13½ min |
+| Mark Jhoshua G. Taberna | System design and algorithm | 10, 11, 12, 13 | ~13 min |
+| Alexander D. Castillo | Live demonstration (drives and narrates) | Demo | ~12½ min |
+
+The demo is where time usually runs over. If you're behind, shorten Slides 6 and 8, never the demo. **Tristan keeps time**: sit where you can see a clock, and give the next speaker a small signal if a block runs long.
 
 ---
 
-## Slide 1 · Title — ⏱ 0:00–2:30 · *Alexander*
+## Slide 1 · Title — ⏱ 0:00–2:30 · *Tristan (leader)*
 
 *Good [morning/afternoon] to our honorable panel members, to our adviser, Ms. Susan Caluya, and to everyone present.*
 
-*We are Alexander Castillo, Charles Medio, Genesis Navarro, Tristan Jhay Salamat, and Mark Jhoshua Taberna, from the Computer Science Department of National University. Today we present our thesis, "Deepfake Detection for Pornographic Images with Human-in-the-Loop."*
+*I am Tristan Jhay Salamat, the leader of our group. With me are Alexander Castillo, Charles Medio, Genesis Navarro, and Mark Jhoshua Taberna, from the Computer Science Department of National University. Today we present our thesis, "Deepfake Detection for Pornographic Images with Human-in-the-Loop."*
 
 *In one sentence: we built a web-based digital forensic system in which an AI model gives a preliminary assessment of whether a facial image has been manipulated, but a trained forensic analyst always makes the final decision, and the system produces a report that keeps the two clearly separate.*
 
-*We will present the introduction and problem, our objectives and scope, the theoretical and conceptual frameworks, our system architecture and algorithm, our datasets and evaluation plan, then a live demonstration of the working prototype, and finally our contributions.*
+*Genesis will present the introduction and the problem. Charles will present our objectives, scope, and theoretical framework. I will present the conceptual framework. Mark will present the system architecture, algorithm, and evaluation plan. Alexander will then demonstrate the working prototype live, and I will close with our contributions.*
+
+*To begin, here is Genesis.*
 
 ---
 
-## Slide 2 · Chapter 1: Introduction — ⏱ 2:30–5:00 · *Alexander*
+## Slide 2 · Chapter 1: Introduction — ⏱ 2:30–5:00 · *Genesis*
 
 *Artificial intelligence has advanced very quickly, and one of its most controversial products is the deepfake. Deepfakes use deep learning models, especially Generative Adversarial Networks or GANs, to create facial images and videos that look real but have been manipulated.*
 
@@ -77,11 +89,11 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 
 *We also observed three weaknesses in many existing detection systems. First, they rely only on CNN-based feature extraction. Second, they use a single similarity measurement. Third, they give an automated final verdict with no structured human forensic review. These systems can catch obvious manipulations, but they struggle with subtle alterations, often perform poorly on datasets they were not trained on, and, most importantly for forensic use, leave no auditable record of how a human expert weighed the evidence.*
 
-*This leads to our objectives.*
+*These problems led to our objectives, which Charles will now present.*
 
 ---
 
-## Slide 5 · Objectives of the Study — ⏱ 13:00–17:00 · *Genesis*
+## Slide 5 · Objectives of the Study — ⏱ 13:00–17:00 · *Charles*
 
 *Our general objective is to design and build a web-based digital forensic system that detects and classifies suspected deepfake pornographic images using a Hybrid CNN-Transformer model and multi-metric similarity analysis, with a human-in-the-loop review stage in which a trained forensic analyst evaluates the model's output before the final classification and forensic report are issued.*
 
@@ -135,9 +147,11 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 
 *Third, the **Transformer attention mechanism** of Vaswani and colleagues, 2017. Self-attention models long-range relationships across distant parts of the face, for example whether the eyes, nose and jawline are structurally consistent with each other. A CNN, which looks at local regions, can miss these. This is why we pair the CNN with a Transformer.*
 
+*Our leader, Tristan, will now show how these ideas come together in our conceptual framework.*
+
 ---
 
-## Slide 9 · Conceptual Framework — ⏱ 26:30–29:30 · *Tristan*
+## Slide 9 · Conceptual Framework — ⏱ 26:30–29:30 · *Tristan (leader)*
 
 *Our conceptual framework has four stages: Input, Process, Human Review, and Output.*
 
@@ -149,9 +163,11 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 
 *In the **Output** stage, the system produces an auditable forensic report that presents the algorithm's metrics and the reviewer's determination **side by side but clearly separated**, so no one can mistake the AI's preliminary result for the human's conclusion.*
 
+*Mark will now walk you through the system architecture.*
+
 ---
 
-## Slide 10 · System Architecture — ⏱ 29:30–33:30 · *Tristan*
+## Slide 10 · System Architecture — ⏱ 29:30–33:30 · *Mark*
 
 *Here is the architecture, module by module.*
 
@@ -163,7 +179,7 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 
 ---
 
-## Slide 11 · Methodology & Sequential Steps — ⏱ 33:30–36:00 · *Tristan*
+## Slide 11 · Methodology & Sequential Steps — ⏱ 33:30–36:00 · *Mark*
 
 *From the user's point of view, the process takes six steps.*
 
@@ -173,7 +189,7 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 
 ---
 
-## Slide 12 · Algorithm Overview — ⏱ 36:00–40:00 · *Tristan*
+## Slide 12 · Algorithm Overview — ⏱ 36:00–40:00 · *Mark*
 
 *This is our VERIFY_MEDIA procedure. Its inputs are the suspect image I, the reference R, and the threshold τ.*
 
@@ -200,96 +216,97 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 
 *Our **evaluation has two parts**. For the machine classification, we measure accuracy, precision, recall, F1-score, and ROC-AUC, and compare our hybrid model with an XceptionNet baseline. For human–AI agreement, we measure the agreement rate and Cohen's kappa between the AI's preliminary classification and the analyst's final decision.*
 
-*Now let us show you the system working.*
+*Alexander will now demonstrate the working system.*
 
 ---
 
-## LIVE DEMONSTRATION — ⏱ 42:30–55:00 · *Alexander drives · Mark narrates*
+## LIVE DEMONSTRATION — ⏱ 42:30–55:00 · *Alexander* (Mark = backup operator)
 
 > Use **only** the NASA demo images in `demo\samples\` (public-domain, non-explicit).
 > Before the defense, follow the **checklist** at the end. Start with fresh data so the case is CASE-0001.
 
 ### D1 · Introduce the prototype (42:30–43:30)
-*Mark:* *Our prototype runs locally on this laptop, on the CPU. It is built with Python, PyTorch, Flask, and ReportLab for the PDF reports.*
+*Alexander:* *Our prototype runs locally on this laptop, on the CPU. It is built with Python, PyTorch, Flask, and ReportLab for the PDF reports.*
 
 *(If the red banner shows:)* *The red banner reads "UNTRAINED MODEL: results not indicative of real accuracy." Our system displays this whenever the fine-tuned weights have not been loaded, on every page and in every report, so that no one relies on an unvalidated AI result.*
 
-*Mark:* *For this demonstration we use a public-domain NASA portrait, not explicit material. Our AI analyzes only the face region, so the process is identical, and our ethics protocol forbids showing explicit material outside authorized casework.*
+*Alexander:* *For this demonstration we use a public-domain NASA portrait, not explicit material. Our AI analyzes only the face region, so the process is identical, and our ethics protocol forbids showing explicit material outside authorized casework.*
 
 ### D2 · Investigator submits a case (43:30–46:30)
-*Alexander:* logs in as **INV-01** → **Submit case** → Suspect `suspect_manipulated.png`, Reference `reference.png`.
+**Action:** logs in as **INV-01** → **Submit case** → Suspect `suspect_manipulated.png`, Reference `reference.png`.
 
-*Mark:* *We are logged in as an investigator. The suspect image has a synthetic edit to the inner face region; the reference is the original portrait of the same person.*
+*Alexander:* *We are logged in as an investigator. The suspect image has a synthetic edit to the inner face region; the reference is the original portrait of the same person.*
 
-*Alexander:* points at the checkbox, ticks it.
+**Action:** points at the checkbox, ticks it.
 
-*Mark:* *Every submission requires this attestation: that the subject is an adult and that the investigator is authorized. This enforces our scope.*
+*Alexander:* *Every submission requires this attestation: that the subject is an adult and that the investigator is authorized. This enforces our scope.*
 
-*Alexander:* clicks **Submit for analysis**.
+**Action:** clicks **Submit for analysis**.
 
-*Mark:* *Right now the system computes a SHA-256 hash of each file for chain of custody, then runs our algorithm, lines 2 to 15: face detection, both neural branches, fusion, the three metrics, and the preliminary classification.*
+*Alexander:* *Right now the system computes a SHA-256 hash of each file for chain of custody, then runs our algorithm, lines 2 to 15: face detection, both neural branches, fusion, the three metrics, and the preliminary classification.*
 
-*Alexander:* shows **My cases**.
+**Action:** shows **My cases**.
 
-*Mark:* *The case is **Pending**. Notice that the investigator does not see the AI's result. Nothing is final until an analyst reviews it.*
+*Alexander:* *The case is **Pending**. Notice that the investigator does not see the AI's result. Nothing is final until an analyst reviews it.*
 
 ### D3 · No face = no analysis (46:30–47:30)
-*Alexander:* submits `no_face.png` + `reference.png`.
+**Action:** submits `no_face.png` + `reference.png`.
 
-*Mark:* *If no face is detected, the system does not guess: "No face detected. Case cannot be analyzed." The rejection is still recorded in the audit log.*
+*Alexander:* *If no face is detected, the system does not guess: "No face detected. Case cannot be analyzed." The rejection is still recorded in the audit log.*
 
 ### D4 · Analyst dashboard (47:30–48:30)
-*Alexander:* logs out → logs in as **ANA-01**.
+**Action:** logs out → logs in as **ANA-01**.
 
-*Mark:* *Now we are the forensic analyst. The dashboard shows how many cases are pending, verified, and flagged, and the live agreement rate between the AI and the analysts.*
+*Alexander:* *Now we are the forensic analyst. The dashboard shows how many cases are pending, verified, and flagged, and the live agreement rate between the AI and the analysts.*
 
 ### D5 · Review interface, objective 3 (48:30–52:30)
-*Alexander:* clicks **Review**.
+**Action:** clicks **Review**.
 
-*Mark:* *This is the core of our study.*
+*Alexander:* *This is the core of our study.*
 - *On the left are only the **aligned face crops**. The full images are **pixelated** by default. This protects sensitive material.*
 - *On the right, in blue and labeled **AUTOMATED**, is the AI's preliminary analysis: the classification, the confidence, the three similarity metrics, and the aggregated score S against τ.* *(Read the actual values on screen.)*
 
-*Alexander:* clicks **Reveal full image** → confirms.
+**Action:** clicks **Reveal full image** → confirms.
 
-*Mark:* *If the analyst must see the full image, they reveal it deliberately. Only analysts can do this, and every reveal is logged with their ID and the time.*
+*Alexander:* *If the analyst must see the full image, they reveal it deliberately. Only analysts can do this, and every reveal is logged with their ID and the time.*
 
-*Alexander:* in the green **HUMAN-VERIFIED** section, chooses:
+**Action:** in the green **HUMAN-VERIFIED** section, chooses:
 - AI said **Real** → **Override** · AI said **Deepfake** → **Confirm**.
 
-*Alexander:* types "fake" and clicks submit.
+**Action:** types "fake" and clicks submit.
 
-*Mark:* *A rationale is mandatory, at least 30 characters. The analyst must justify every decision.*
+*Alexander:* *A rationale is mandatory, at least 30 characters. The analyst must justify every decision.*
 
-*Alexander:* types the rationale (Override example):
+**Action:** types the rationale (Override example):
 > Although the AI scored the image as Real, the inner face region shows warping around the eyes and nose bridge, and its colour saturation differs from the forehead and neck. These localized distortions are inconsistent with the reference image. Overriding to Deepfake.
 
 …and submits.
 
-*Mark (if Override):* *This is exactly why human review matters. The AI's preliminary result was wrong, and the analyst corrected it, with the reasoning on record. This is line 16 of our algorithm.*
+*Alexander (if Override):* *This is exactly why human review matters. The AI's preliminary result was wrong, and the analyst corrected it, with the reasoning on record. This is line 16 of our algorithm.*
 
 ### D6 · Forensic report (52:30–54:00)
-*Mark:* *This is line 17, the forensic report.* (Scroll slowly.)
+*Alexander:* *This is line 17, the forensic report.* (Scroll slowly.)
 - *Section I, case information: who submitted and who reviewed.*
 - *Section II: only **blurred** face crops, with the SHA-256 hashes.*
 - *Section III, in blue: the **AUTOMATED** AI analysis, labeled as preliminary and not a verdict.*
 - *Section IV, in green: the **HUMAN-VERIFIED** conclusion: decision, final classification, and rationale.*
 - *Section V: the analyst's sign-off.*
 
-*Alexander:* clicks **Download PDF**, shows it.
+**Action:** clicks **Download PDF**, shows it.
 
-*Mark:* *The case is now read-only; the review can no longer be changed.*
+*Alexander:* *The case is now read-only; the review can no longer be changed.*
 
 ### D7 · Admin: evaluation and audit log, objective 4 (54:00–55:00)
-*Alexander:* logs in as **ADM-01** → **Evaluation** → **Audit log**.
+**Action:** logs in as **ADM-01** → **Evaluation** → **Audit log**.
 
-*Mark:* *The administrator's evaluation page computes the agreement rate and Cohen's kappa from the case records. And this is the append-only audit log: logins, submissions, rejections, image reveals, reviews, and report downloads, each with the user and time. That concludes our demonstration.*
+*Alexander:* *The administrator's evaluation page computes the agreement rate and Cohen's kappa from the case records. And this is the append-only audit log: logins, submissions, rejections, image reveals, reviews, and report downloads, each with the user and time. That concludes our demonstration. I now give the floor back to our leader, Tristan.*
 
-> **Backup:** if anything fails, open `docs\walkthrough\` and show screenshots 01 → 13 plus the sample PDF, with the same narration. Don't troubleshoot live for more than 30 seconds.
+> **Backup:** if anything fails, **Mark** takes the laptop and opens `docs\walkthrough\` (screenshots 01 → 13 plus the sample PDF) while Alexander keeps narrating. Don't troubleshoot live for more than 30 seconds.
+> **Tip:** Alexander both clicks and talks. Say each line *before* clicking, then pause while the page loads.
 
 ---
 
-## Slide 14 · Synthesis and Core Contributions — ⏱ 55:00–58:00 · *Mark*
+## Slide 14 · Synthesis and Core Contributions — ⏱ 55:00–58:00 · *Tristan (leader)*
 
 *To synthesize, our study makes three contributions.*
 
@@ -301,11 +318,11 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 
 ---
 
-## Slide 15 · Thank You — ⏱ 58:00–60:00 · *Alexander*
+## Slide 15 · Thank You — ⏱ 58:00–60:00 · *Tristan (leader)*
 
 *In summary: deepfakes, especially non-consensual pornographic deepfakes, cause serious harm, and automated detection alone is not enough when the result may be used as evidence. Our system lets AI do what it does well, analyzing facial features at scale, while a trained human analyst makes the final, documented decision.*
 
-*Thank you very much for your time and attention. We are now open to the panel's questions.*
+*On behalf of our group, thank you very much for your time and attention. We are now open to the panel's questions.*
 
 ---
 
@@ -360,6 +377,20 @@ The model isn't trained or validated yet, and it's a prototype. Words like *cert
 - [ ] Zoom the browser to about 125%. Close unrelated apps and turn off notifications.
 
 ---
+
+## Q&A plan (led by Tristan)
+
+- **Tristan** receives each question, repeats it briefly if needed, and passes it to the member who presented that part. Tristan answers overall-design and scope questions directly.
+- The assigned member answers. Others may add **one** point only if Tristan invites them.
+- If nobody is sure, don't guess: *"That is a valid point; we will verify it and include it in our revisions."*
+
+| Question topic | Answered by |
+|---|---|
+| Background, problem, motivation, statistics | Genesis |
+| Objectives, significance, scope and delimitations, theories | Charles |
+| Overall design, human-in-the-loop, ethics, conceptual framework | Tristan |
+| Architecture, algorithm, formulas, datasets, training, metrics | Mark |
+| How the prototype works, code, security features, "UNTRAINED MODEL" banner | Alexander |
 
 ## Likely panel questions
 
