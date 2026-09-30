@@ -46,9 +46,13 @@ def app(tmp_path):
     return make_app(tmp_path)
 
 
-def login(client, uid):
+ROLE_BY_PREFIX = {"INV": "investigator", "ANA": "analyst", "ADM": "admin"}
+
+
+def login(client, uid, role=None):
     client.post("/logout")
-    r = client.post("/login", data={"user_id": uid, "password": PASSWORD})
+    role = role or ROLE_BY_PREFIX[uid[:3]]
+    r = client.post("/login", data={"user_id": uid, "password": PASSWORD, "role": role})
     assert r.status_code == 302, r.data
     return client
 

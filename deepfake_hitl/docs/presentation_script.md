@@ -271,9 +271,9 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 *Alexander:* *For this demonstration we use a public-domain NASA portrait, not explicit material. Our AI analyzes only the face region, so the process is identical, and our ethics protocol forbids showing explicit material outside authorized casework.*
 
 ### D2 · Investigator submits a case (43:30–46:30)
-**Action:** logs in as **INV-01** → **Submit case** → Suspect `suspect_manipulated.png`, Reference `reference.png`.
+**Action:** on the login page, **Log in as: Investigator** → **INV-01** → **Submit case** → Suspect `suspect_manipulated.png`, Reference `reference.png`.
 
-*Alexander:* *We are logged in as an investigator. The suspect image has a synthetic edit to the inner face region; the reference is the original portrait of the same person.*
+*Alexander:* *On the login page I choose "Log in as Investigator". The system checks that the chosen role matches the account, so an analyst account cannot enter as an investigator. We are now logged in as an investigator. The suspect image has a synthetic edit to the inner face region; the reference is the original portrait of the same person.*
 
 **Action:** points at the checkbox, ticks it.
 
@@ -293,7 +293,7 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 *Alexander:* *If no face is detected, the system does not guess: "No face detected. Case cannot be analyzed." The rejection is still recorded in the audit log.*
 
 ### D4 · Analyst dashboard (47:30–48:30)
-**Action:** logs out → logs in as **ANA-01**.
+**Action:** logs out → **Log in as: Analyst** → **ANA-01**.
 
 *Alexander:* *Now we are the forensic analyst. The dashboard shows how many cases are pending, verified, and flagged, and the live agreement rate between the AI and the analysts.*
 
@@ -335,7 +335,7 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 *Alexander:* *The case is now read-only; the review can no longer be changed.*
 
 ### D7 · Admin: evaluation and audit log, objective 4 (54:00–55:00)
-**Action:** logs in as **ADM-01** → **Evaluation** → **Audit log**.
+**Action:** logs out → **Log in as: Administrator** → **ADM-01** → **Evaluation** → **Audit log**.
 
 *Alexander:* *The administrator's evaluation page computes the agreement rate and Cohen's kappa from the case records. And this is the append-only audit log: logins, submissions, rejections, image reveals, reviews, and report downloads, each with the user and time. That concludes our demonstration. I now give the floor back to our leader, Tristan.*
 
@@ -403,7 +403,7 @@ The model isn't trained or validated yet, and it's a prototype. Words like *cert
 ## Pre-defense checklist
 
 **The day before**
-- [ ] In VS Code: `git pull`, `.venv\Scripts\activate`, `python -m pytest` → **95 passed**.
+- [ ] In VS Code: `git pull`, `.venv\Scripts\activate`, `python -m pytest` → **96 passed**.
 - [ ] Run one full case so the ImageNet weights are downloaded and cached.
 - [ ] Fresh demo data: stop the app, **rename** the `data` folder to `data_practice`, then run `python seed_users.py --password <demo password>` and `python demo/make_demo_samples.py`.
 - [ ] Rehearse the full 60 minutes once and the demo twice (target: 12½ minutes).
@@ -510,7 +510,7 @@ The model isn't trained or validated yet, and it's a prototype. Words like *cert
 | How do you ensure chain of custody? | A SHA-256 hash of each uploaded file is stored in the case record and shown in the report. |
 | Can the analyst change a decision later? | No. Reviewed cases are read-only. |
 | Who can delete data? | Only an admin, through a secure purge command that overwrites the files and logs the deletion. |
-| How was it tested? | 95 automated tests, covering the formulas, classifier, kappa, review workflow, access control, and a full submission-to-PDF run. |
+| How was it tested? | 96 automated tests, covering the formulas, classifier, kappa, review workflow, access control, and a full submission-to-PDF run. |
 | What happens with an image without a face? | The system refuses to analyze it and records the rejection; it never guesses. |
 
 ---

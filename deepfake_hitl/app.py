@@ -28,6 +28,13 @@ from review.audit_log import log_event, read_events
 from review.case_store import CaseNotFoundError, CaseStore, now_iso
 from users import ADMIN, ANALYST, INVESTIGATOR, ROLES, UserStore
 
+# "Log in as" choices on the login page: (role value, label)
+LOGIN_ROLES = [
+    (INVESTIGATOR, "Investigator"),
+    (ANALYST, "Analyst"),
+    (ADMIN, "Administrator"),
+]
+
 ATTESTATION_TEXT = ("I attest that the subject is an adult (18+) and that I am authorized "
                     "to submit this material.")
 
@@ -136,15 +143,20 @@ def create_app(overrides=None):
     def login():
         if request.method == "POST":
             uid = request.form.get("user_id", "").strip().upper()
+            role = request.form.get("role", "")
             user = users.authenticate(uid, request.form.get("password", ""))
-            if user:
+            # The chosen "Log in as" role must match the account's role.
+            if user and user.role == role:
                 login_user(user)
                 session["_csrf"] = secrets.token_urlsafe(32)
-                audit("login", user_id=user.id)
+                audit("login", user_id=user.id, role=role)
                 return redirect(url_for("index"))
-            audit("login_failed", user_id=uid or "unknown")
-            flash("Invalid user ID or password.", "danger")
-        return render_template("login.html")
+            reason = "role_mismatch" if user else "bad_credentials"
+            audit("login_failed", user_id=uid or "unknown", role=role or None, reason=reason)
+            flash("Invalid user ID, password, or role.", "danger")
+            return render_template("login.html", login_roles=LOGIN_ROLES,
+                                   selected_role=role, user_id=uid), 401
+        return render_template("login.html", login_roles=LOGIN_ROLES, selected_role="", user_id="")
 
     @app.route("/logout", methods=["POST"])
     @login_required

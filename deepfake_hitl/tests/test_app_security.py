@@ -45,11 +45,12 @@ def test_csrf_enforced(tmp_path):
     app = make_app(tmp_path)
     app.config["CSRF_ENABLED"] = True
     c = app.test_client()
-    assert c.post("/login", data={"user_id": "INV-01", "password": PASSWORD}).status_code == 400
+    assert c.post("/login", data={"user_id": "INV-01", "password": PASSWORD, "role": "investigator"}).status_code == 400
     c.get("/login")
     with c.session_transaction() as s:
         token = s["_csrf"]
-    r = c.post("/login", data={"user_id": "INV-01", "password": PASSWORD, "csrf_token": token})
+    r = c.post("/login", data={"user_id": "INV-01", "password": PASSWORD, "role": "investigator",
+                               "csrf_token": token})
     assert r.status_code == 302
 
 
@@ -98,3 +99,20 @@ def test_admin_can_create_and_disable_users(tmp_path):
     assert app.extensions["user_store"].get("ANA-09").role == "analyst"
     c.post("/admin/users", data={"action": "disable", "user_id": "ANA-09"})
     assert app.extensions["user_store"].authenticate("ANA-09", "longpassword") is None
+
+
+def test_login_role_must_match_account(tmp_path):
+    app = make_app(tmp_path)
+    c = app.test_client()
+    page = c.get("/login").data
+    assert b"Log in as" in page and b"Investigator" in page and b"Analyst" in page
+    # right password, wrong role -> refused and logged
+    r = c.post("/login", data={"user_id": "ANA-01", "password": PASSWORD, "role": "investigator"})
+    assert r.status_code == 401 and b"Invalid user ID, password, or role." in r.data
+    assert c.get("/dashboard").status_code == 302                       # still not logged in
+    r = c.post("/login", data={"user_id": "ANA-01", "password": PASSWORD})   # no role chosen
+    assert r.status_code == 401
+    assert '"role_mismatch"' in open(app.config["AUDIT_LOG_PATH"]).read()
+    # right role -> logged in
+    r = c.post("/login", data={"user_id": "ANA-01", "password": PASSWORD, "role": "analyst"})
+    assert r.status_code == 302 and c.get("/dashboard").status_code == 200

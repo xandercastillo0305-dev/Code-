@@ -52,6 +52,8 @@ flask --app app run                  # http://127.0.0.1:5000
 | `ANA-01`, `ANA-02` | Analyst (reviews cases) | `demo1234` |
 | `ADM-01` | Admin (users, evaluation page, audit log, purge) | `demo1234` |
 
+On the login page, choose the matching **Log in as** role (Investigator, Analyst or Administrator). A correct password with the wrong role is refused and logged.
+
 Change the passwords with `python seed_users.py --password ...` (on an empty `data/users.json`)
 and set `DFHITL_SECRET_KEY` before any real use.
 
