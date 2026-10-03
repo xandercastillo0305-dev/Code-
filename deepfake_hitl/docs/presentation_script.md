@@ -515,7 +515,7 @@ The model isn't trained or validated yet, and it's a prototype. Words like *cert
 | How fast is it? | A few seconds per case on a normal laptop CPU; no GPU needed for the demo. Training is done on a Colab GPU. |
 | How do you ensure chain of custody? | A SHA-256 hash of each uploaded file is stored in the case record and shown in the report. |
 | Can the analyst change a decision later? | No. Reviewed cases are read-only. |
-| Who can delete data? | Only an admin, through a secure purge command that overwrites the files and logs the deletion. |
+| Who can delete data? | Only an admin, using the **Delete case** button (with a required reason and confirmation) or the purge command. Files are overwritten before deletion, and each deletion is logged with the reason and the file hashes. |
 | How was it tested? | 96 automated tests, covering the formulas, classifier, kappa, review workflow, access control, and a full submission-to-PDF run. |
 | What happens with an image without a face? | The system refuses to analyze it and records the rejection; it never guesses. |
 

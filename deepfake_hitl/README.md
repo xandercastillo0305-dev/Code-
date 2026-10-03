@@ -155,7 +155,8 @@ model (random init) and checks the tensor shapes.
   (`image_revealed`). Reports and investigators only ever see blurred face crops.
 * Append-only audit log `data/audit_log.jsonl`: login, case submitted/rejected, case viewed, image revealed,
   review submitted, report viewed/downloaded, case deleted, user changes.
-* Data-retention purge (admin credentials required, logged as `case_deleted`):
+* Data-retention purge, admin only, logged as `case_deleted` with the reason and file hashes:
+  in the web app (**Admin → Dashboard → Delete case**, asks for a reason and a confirmation), or from the command line:
   ```bash
   flask --app app purge-case CASE-0001
   flask --app app purge-all

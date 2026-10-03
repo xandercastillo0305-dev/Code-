@@ -372,6 +372,19 @@ def create_app(overrides=None):
                          download_name=f"{case_id}_forensic_report.pdf")
 
     # ---- Admin ---------------------------------------------------------------------------
+    @app.route("/cases/<case_id>/delete", methods=["POST"])
+    @roles_required(ADMIN)
+    def delete_case(case_id):
+        """Admin-only secure deletion from the web interface (same purge as the CLI)."""
+        load_case(case_id)
+        reason = (request.form.get("reason") or "").strip()
+        if len(reason) < 5:
+            flash("A reason (at least 5 characters) is required to delete a case.", "danger")
+            return redirect(url_for("dashboard"))
+        n = purge_case(app, case_id, current_user.id, reason=reason)
+        flash(f"{case_id} was securely deleted ({n} files). The deletion is recorded in the audit log.", "success")
+        return redirect(url_for("dashboard"))
+
     @app.route("/evaluation")
     @roles_required(ADMIN)
     def evaluation():
@@ -437,7 +450,7 @@ def _require_admin(users, admin_id, password):
     return user
 
 
-def purge_case(app, case_id, admin_id):
+def purge_case(app, case_id, admin_id, reason="data-retention purge"):
     """Securely delete a case's images and report and remove the record."""
     cases = app.extensions["case_store"]
     case = cases.get(case_id)
@@ -447,7 +460,7 @@ def purge_case(app, case_id, admin_id):
     cases.delete(case_id)
     log_event(app.config["AUDIT_LOG_PATH"], "case_deleted", admin_id, case_id,
               files_removed=removed, suspect_sha256=case.get("suspect_sha256"),
-              reference_sha256=case.get("reference_sha256"), reason="data-retention purge")
+              reference_sha256=case.get("reference_sha256"), reason=reason)
     return removed
 
 

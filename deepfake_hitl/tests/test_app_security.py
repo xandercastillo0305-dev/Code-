@@ -116,3 +116,26 @@ def test_login_role_must_match_account(tmp_path):
     # right role -> logged in
     r = c.post("/login", data={"user_id": "ANA-01", "password": PASSWORD, "role": "analyst"})
     assert r.status_code == 302 and c.get("/dashboard").status_code == 200
+
+
+def test_admin_can_delete_case_from_web(tmp_path):
+    app = make_app(tmp_path)
+    c = login(app.test_client(), "INV-01")
+    upload(c, tmp_path)
+    folder = os.path.join(app.config["UPLOAD_DIR"], "CASE-0001")
+    assert os.path.isdir(folder)
+    # investigators and analysts cannot delete
+    assert c.post("/cases/CASE-0001/delete", data={"reason": "testing"}).status_code == 403
+    login(c, "ANA-01")
+    assert c.post("/cases/CASE-0001/delete", data={"reason": "testing"}).status_code == 403
+    # admin sees the button; a reason is required
+    login(c, "ADM-01")
+    assert b"Delete case" in c.get("/dashboard").data
+    c.post("/cases/CASE-0001/delete", data={"reason": ""})
+    assert app.extensions["case_store"].get("CASE-0001")
+    r = c.post("/cases/CASE-0001/delete", data={"reason": "Data-retention policy"})
+    assert r.status_code == 302
+    assert app.extensions["case_store"].list() == [] and not os.path.exists(folder)
+    log = open(app.config["AUDIT_LOG_PATH"]).read()
+    assert '"case_deleted"' in log and "Data-retention policy" in log
+    assert c.post("/cases/CASE-0001/delete", data={"reason": "again please"}).status_code == 404

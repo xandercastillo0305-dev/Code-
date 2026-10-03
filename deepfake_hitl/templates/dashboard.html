@@ -1,5 +1,20 @@
 {% extends "base.html" %}{% from "_status.html" import status_badge, label_badge %}
 {% block title %}Reviewer dashboard{% endblock %}
+{% block scripts %}
+<script>
+// Admin-only case deletion: ask for a reason (stored in the audit log) and confirm.
+document.querySelectorAll('.delete-form').forEach(function (f) {
+  f.addEventListener('submit', function (e) {
+    var id = f.dataset.case;
+    var reason = prompt('Reason for deleting ' + id + ' (recorded in the audit log):', 'Data-retention policy');
+    if (reason === null) { e.preventDefault(); return; }
+    if (reason.trim().length < 5) { e.preventDefault(); alert('Please enter a reason of at least 5 characters.'); return; }
+    if (!confirm('Permanently and securely delete ' + id + ', its images and its report?\nThis cannot be undone.')) { e.preventDefault(); return; }
+    f.querySelector('input[name=reason]').value = reason.trim();
+  });
+});
+</script>
+{% endblock %}
 {% block content %}
 <h1 class="h3 mb-3">Reviewer dashboard</h1>
 <div class="row g-3 mb-4">
@@ -39,6 +54,13 @@
         <a class="btn btn-sm {{ 'btn-primary' if c.status == 'pending' else 'btn-outline-secondary' }}" href="{{ url_for('review_case', case_id=c.case_id) }}">{{ 'Review' if c.status == 'pending' else 'Open' }}</a>
       {% endif %}
       {% if c.status != 'pending' %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('view_report', case_id=c.case_id) }}">Report</a>{% endif %}
+      {% if current_user.role == 'admin' %}
+        <form method="post" action="{{ url_for('delete_case', case_id=c.case_id) }}" class="d-inline delete-form" data-case="{{ c.case_id }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="reason" value="">
+          <button class="btn btn-sm btn-outline-danger">Delete case</button>
+        </form>
+      {% endif %}
     </td>
   </tr>
   {% else %}
