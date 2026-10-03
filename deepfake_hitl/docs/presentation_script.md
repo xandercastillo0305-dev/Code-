@@ -229,20 +229,23 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 
 ## Slide 12 · Algorithm Overview — ⏱ 36:00–40:00 · *Mark*
 
-*This is our VERIFY_MEDIA procedure. Its inputs are the suspect image I, the reference R, and the threshold τ.*
+*This is our VERIFY_MEDIA procedure. Its inputs are the suspect image I, the reference image R, the threshold τ, and the metric weights.*
 
-- *Lines 2 and 3 are preprocessing: MTCNN detection and alignment, then resizing to 380 by 380 and normalization. The reference image goes through the same steps.*
-- *Lines 4 and 5 run the two branches: EfficientNet-B4 gives F1, the Vision Transformer gives F2.*
-- *Line 6 fuses them into one embedding.*
-- *Lines 7 to 9 compute the three metrics. Cosine similarity measures the angle between the two embeddings. Euclidean distance measures how far apart they are, and we convert it to a similarity, 1 minus d over 2, so that higher always means more similar. SSIM measures the structural similarity of the two aligned face images.*
-- *Line 10 combines them into one aggregated score S, a weighted sum with equal weights of one-third by default.*
-- *Lines 11 to 15 apply the threshold: if S is at least τ, 0.70 by default, the preliminary classification is Real; otherwise, Deepfake. The system also computes a confidence score based on how far S is from τ.*
-- *Line 16 is the human-in-the-loop review: the analyst gives the final decision D and the rationale.*
-- *Line 17 generates the forensic report, and line 18 returns the decision, the score, and the report.*
+- *Lines 2 to 10 form a loop: the suspect and the reference image go through exactly the same steps.*
+- *Line 3: MTCNN detects the largest face. Line 4: if there is no face, the system stops with "No face detected. Case cannot be analyzed." It never guesses.*
+- *Lines 5 and 6: the face is aligned, cropped, resized to 380 by 380, and normalized.*
+- *Lines 7 and 8 run the two branches: EfficientNet-B4 gives the local features F1, and the Vision Transformer gives the global features F2. The Transformer needs a size divisible by 16, so its input is resized to 384 by 384.*
+- *Line 9 fuses them into one 512-value embedding.*
+- *Lines 11 to 13 compute the three metrics. Cosine similarity measures the angle between the two embeddings. Euclidean distance measures how far apart they are, and we convert it to a similarity, 1 minus d over 2, so that higher always means more similar. SSIM compares the two aligned face images directly.*
+- *Line 14 combines them into the aggregated score S, a weighted sum with equal weights of one-third by default.*
+- *Line 15 applies the threshold: if S is at least τ, 0.70 by default, the preliminary classification is Real; otherwise, Deepfake. Line 16 computes a confidence score from how far S is from τ.*
+- *Line 17: the case is added to the review queue as pending. This is where the automated part ends.*
+- *Line 18 is the human-in-the-loop review: Confirm keeps the AI result, Override changes it to the other class, and Flag makes it Inconclusive. The analyst must write a rationale.*
+- *Line 19 generates the forensic report, and line 20 returns both the AI result C and the analyst's decision D, with the score and the report.*
 
-*Lines 2 to 15 run automatically when a case is submitted. Lines 16 and 17 happen only when the analyst acts. The AI's classification C is never the final answer; the analyst's decision D is.*
+*Lines 2 to 17 run automatically when a case is submitted. Lines 18 to 20 happen only when the analyst acts. The AI's classification C is never the final answer; the analyst's decision D is.*
 
-> **Fix Slide 12 before the defense** so it matches this narration (line 9 SSIM, line 8 conversion). See Slide fixes.
+> **Replace Slide 12 with the revised 21-line algorithm** (copy it from "Revised algorithm for Slide 12" at the end of this script) so the slide matches this narration and the manuscript.
 
 ---
 
@@ -281,7 +284,7 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 
 **Action:** clicks **Submit for analysis**.
 
-*Alexander:* *Right now the system computes a SHA-256 hash of each file for chain of custody, then runs our algorithm, lines 2 to 15: face detection, both neural branches, fusion, the three metrics, and the preliminary classification.*
+*Alexander:* *Right now the system computes a SHA-256 hash of each file for chain of custody, then runs our algorithm, lines 2 to 17: face detection, both neural branches, fusion, the three metrics, the preliminary classification, and adding the case to the review queue.*
 
 **Action:** shows **My cases**.
 
@@ -326,10 +329,10 @@ The demo is where time usually runs over. If you're behind, shorten Slides 6 and
 
 *Alexander:* *Before the review is saved, the system asks the analyst to confirm, because the case becomes read-only afterwards.*
 
-*Alexander (if Override):* *This is exactly why human review matters. The AI's preliminary result was wrong, and the analyst corrected it, with the reasoning on record. This is line 16 of our algorithm.*
+*Alexander (if Override):* *This is exactly why human review matters. The AI's preliminary result was wrong, and the analyst corrected it, with the reasoning on record. This is line 18 of our algorithm.*
 
 ### D6 · Forensic report (52:30–54:00)
-*Alexander:* *This is line 17, the forensic report.* (Scroll slowly.)
+*Alexander:* *This is line 19, the forensic report.* (Scroll slowly.)
 - *Section I, case information: who submitted and who reviewed.*
 - *Section II: only **blurred** face crops, with the SHA-256 hashes.*
 - *Section III, in blue: the **AUTOMATED** AI analysis, labeled as preliminary and not a verdict.*
@@ -378,14 +381,11 @@ These are places where the **slides don't match the system** or **claim more tha
 
 | Slide | Current text | Problem | Suggested change |
 |---|---|---|---|
-| 12, line 9 | `Score_SSIM ← Calculate_SSIM_Index(F_fused, R)` | SSIM is a 2-D image measure and cannot be computed on an embedding vector. The system computes it on the aligned face crops. | `Score_SSIM ← Calculate_SSIM_Index(I_aligned, R_aligned)  // structural similarity of aligned face crops` |
-| 12, line 8 | `Score_Euc ← Compute_Euclidean_Distance(F_fused, R)` | A *distance* grows as images differ, so adding it to S would push fakes toward "Real". The system converts it. | `Score_Euc ← 1 − EuclideanDistance(F_fused, R_fused) / 2  // distance converted to similarity` |
-| 12, header | `Reference Tensor (R), Forensic Threshold (T)` | The procedure uses τ, not T; R is the reference *image*, processed by the same lines 2–6. | `// Input: Suspect Image (I), Reference Image (R), Threshold (τ)` and add a note: *lines 2–6 are also applied to R* |
-| 12, line 6 | `Concatenate_Vectors(F_1, F_2)` | The system also projects to 512 values (Linear → LayerNorm) and L2-normalizes. | Optional: `F_fused ← L2Norm(Project(Concatenate(F_1, F_2)))` |
+| 12 (whole algorithm) | The 19-line algorithm | It processes only I (not R), has no "no face" stop, no confidence step, computes SSIM on the embeddings and adds a raw distance into S | Replace with the **revised 21-line algorithm** at the end of this script (same as the revised manuscript, Section 3.6) |
 | 11, step 4 | "…SSIM between suspect and reference embeddings" | Same SSIM issue. | "…Cosine Similarity and Euclidean Distance between the embeddings, and SSIM between the aligned face images" |
 | 7 | (missing) | The AI analyzes the face only; the panel may ask about body-only edits. | Add a delimitation: **"Facial Region Only: the AI analyzes the facial region; body or background manipulation is assessed by the analyst."** |
 
-The confidence score is also computed next to lines 11–15. You can add it as a line or just mention it verbally, as in the script.
+The revised algorithm already includes the confidence score (line 16) and the review queue (line 17).
 
 ### Should soften (overclaims)
 
@@ -450,7 +450,7 @@ The model isn't trained or validated yet, and it's a prototype. Words like *cert
 
 1. **Listen to the whole question.** Don't start answering while the panelist is still talking.
 2. **Start with thanks or agreement**: *"Thank you for the question, sir/ma'am."*
-3. **Answer in 30–90 seconds.** State the answer first, then one reason or example. Point to the chapter or slide if it helps: *"As shown in our algorithm, line 9…"*
+3. **Answer in 30–90 seconds.** State the answer first, then one reason or example. Point to the chapter or slide if it helps: *"As shown in our algorithm, line 13…"*
 4. **Don't argue or overclaim.** If a panelist suggests a change, accept it: *"Thank you, we will include that in our revisions."* Genesis writes it down.
 5. **If you don't know,** don't guess: *"That is a valid point. We have not tested that yet; we will verify it and include it in our revisions."*
 6. **Only one member answers each question.** Others add one point only if Tristan invites them.
@@ -534,3 +534,39 @@ Listen to the verdict and the required revisions. Genesis keeps writing. Then **
 *On behalf of our group, thank you very much to our panel for your time, your guidance, and your valuable suggestions. We accept the recommended revisions and will incorporate them in our manuscript and system. We also thank our adviser, Ms. Susan Caluya, for guiding us throughout this study. Thank you.*
 
 If anything about a revision is unclear, Tristan politely asks before leaving: *"May we clarify, sir/ma'am, regarding…"*
+
+---
+
+## Revised algorithm for Slide 12
+
+Same as the revised manuscript (Section 3.6). Use a monospaced font (e.g. Consolas) on the slide so the indentation stays aligned.
+
+```
+Algorithm: Hybrid CNN-Transformer Multi-Metric Verification Pipeline with Human-in-the-Loop Review
+Input:  Suspect Image (I), Reference Image (R), Forensic Threshold (τ), Metric Weights (w_cos, w_euc, w_ssim)
+Output: Preliminary Classification (C ∈ {Real, Deepfake}), Confidence (conf), Aggregated Similarity Score (S),
+        Final Human-Verified Decision (D ∈ {Real, Deepfake, Inconclusive}), Forensic Report (FR)
+
+1:  procedure VERIFY_MEDIA(I, R, τ)
+2:    for each X ∈ {I, R} do                                     // suspect and reference processed identically
+3:      X_face ← MTCNN_Detect_Largest_Face(X)
+4:      if X_face = ∅ then return "No face detected. Case cannot be analyzed."
+5:      X_aligned ← Align_Crop_Resize(X, X_face, [380, 380])      // eyes level, small margin
+6:      X_norm ← Normalize(X_aligned)                             // ImageNet mean and std
+7:      F_1 ← EfficientNet_B4(X_norm)                             // local features (1,792-d)
+8:      F_2 ← Vision_Transformer(Resize(X_norm, [384, 384]))      // global features (384-d)
+9:      X_fused ← L2_Normalize(LayerNorm(Linear(Concatenate(F_1, F_2))))   // 512-d embedding
+10:   end for
+11:   Score_Cos ← (CosineSimilarity(I_fused, R_fused) + 1) / 2
+12:   Score_Euc ← 1 − EuclideanDistance(I_fused, R_fused) / 2
+13:   Score_SSIM ← SSIM(Grayscale(I_aligned), Grayscale(R_aligned))        // on face crops
+14:   S ← w_cos·Score_Cos + w_euc·Score_Euc + w_ssim·Score_SSIM
+15:   if S ≥ τ then C ← "Real" else C ← "Deepfake"
+16:   conf ← 0.5 + 0.5 · min(1, |S − τ| / max(τ, 1 − τ))
+17:   Add case (C, conf, S, scores) to the review queue as "pending"   // automated stage ends
+18:   D, Rationale ← Human_In_The_Loop_Review(C, conf, S, scores, I_aligned, R_aligned)
+          // Confirm: D ← C;  Override: D ← opposite of C;  Flag: D ← "Inconclusive"
+19:   FR ← Generate_Forensic_Report(C, conf, S, scores, D, Rationale)
+20:   return C, S, D, FR
+21: end procedure
+```

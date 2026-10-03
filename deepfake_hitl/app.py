@@ -247,7 +247,7 @@ def create_app(overrides=None):
             "model_version": result["model_version"],
             "model_trained": result["model_trained"],
         }
-        cases.add_case(record)
+        cases.add_case(record)          # Algorithm Line 17: add case to the queue as "pending"
         audit("case_submitted", case_id, suspect_sha256=hashes["suspect"],
               reference_sha256=hashes["reference"], attestation=True)
         flash(f"{case_id} submitted and queued for analyst review.", "success")
@@ -277,6 +277,7 @@ def create_app(overrides=None):
         case = load_case(case_id)
         if request.method == "POST":
             try:
+                # Algorithm Line 18: Human-in-the-Loop review -> D, Rationale
                 case = workflow.submit_review(
                     cases, case_id, current_user.id, request.form.get("decision"),
                     request.form.get("rationale"), request.form.get("override_classification"))
@@ -284,10 +285,11 @@ def create_app(overrides=None):
                 flash(str(exc), "danger")
                 return render_template("review.html", case=case, form=request.form,
                                        conflict=case["submitted_by"] == current_user.id), 400
+            # Algorithm Line 19: generate the forensic report FR
             pdf = generate_pdf(case, report_path_for(case_id, app.config["REPORT_DIR"]),
                                users=users.names(), upload_dir=app.config["UPLOAD_DIR"])
             rel_pdf = os.path.relpath(pdf, app.config["DATA_DIR"])
-            cases.update(case_id, lambda c: {**c, "report_path": rel_pdf})
+            cases.update(case_id, lambda c: {**c, "report_path": rel_pdf})   # Line 20: C, S, D, FR stored
             audit("review_submitted", case_id, decision=case["review_decision"],
                   final_classification=case["final_classification"])
             flash(f"Review recorded for {case_id}. Forensic report generated.", "success")
