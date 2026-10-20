@@ -11,8 +11,10 @@
   <table class="table table-sm table-bordered kv">{% for k, v in report.case_information %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endfor %}</table>
 
   <h2 class="h5">II. Submitted Images <span class="small text-muted">(redacted: blurred face crops only)</span></h2>
+  {% if not report.all_thumbnails %}<p class="small text-muted">Showing the {{ report.thumbnails|length }} most relevant of {{ report.images|length }} images
+    (every reference image and the most suspicious suspect images). All images are listed in Annex A.</p>{% endif %}
   <div class="row g-3 mb-3">
-    {% for img in report.images %}
+    {% for img in report.thumbnails %}
     <div class="{{ 'col-md-6' if not report.multi else 'col-md-4 col-6' }}"><div class="border rounded p-2 h-100">
       <div class="small fw-semibold">{{ img.label }}</div>
       <img class="report-thumb rounded" alt="{{ img.label }} (blurred face crop)"
@@ -27,10 +29,10 @@
     <table class="table table-sm mb-0 kv">{% for k, v in report.ai_analysis %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endfor %}</table>
     {% if report.multi %}
     <div class="p-2">
-      <div class="small fw-semibold mb-1">Per-image results (automated)</div>
+      <div class="small fw-semibold mb-1">Per-image results (automated, most suspicious first)</div>
       <table class="table table-sm table-bordered mb-0 small">
-        <thead class="table-light"><tr><th>Suspect image</th><th>AI result</th><th>Score S</th><th>Best reference</th><th>Confidence</th></tr></thead>
-        {% for r in report.per_image %}<tr><td>#{{ r.n }}</td><td>{{ label_badge(r.ai) }}</td><td class="font-monospace">{{ r.s }}</td><td>#{{ r.ref }}</td><td class="font-monospace">{{ r.conf }}</td></tr>{% endfor %}
+        <thead class="table-light"><tr><th>Suspect image</th><th>File</th><th>AI result</th><th>Score S</th><th>Best reference</th><th>Confidence</th></tr></thead>
+        {% for r in report.per_image %}<tr><td>#{{ r.n }}</td><td class="text-break">{{ r.filename }}</td><td>{{ label_badge(r.ai) }}</td><td class="font-monospace">{{ r.s }}</td><td>#{{ r.ref }}</td><td class="font-monospace">{{ r.conf }}</td></tr>{% endfor %}
       </table>
     </div>
     {% endif %}
@@ -46,5 +48,16 @@
 
   <h2 class="h5">V. Sign-off</h2>
   <table class="table table-sm table-bordered kv">{% for k, v in report.sign_off %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endfor %}</table>
+  {% if not report.all_thumbnails %}
+  <h2 class="h5 mt-4">Annex A. All submitted images (chain of custody)</h2>
+  <table class="table table-sm table-bordered small"><thead class="table-light"><tr><th>Image</th><th>File</th><th>SHA-256</th></tr></thead>
+    {% for i in report.images %}<tr><td>{{ i.label }}</td><td class="text-break">{{ i.filename }}</td><td class="sha">{{ i.sha256 }}</td></tr>{% endfor %}</table>
+  {% endif %}
+  {% if report.skipped %}
+  <h2 class="h5 mt-4">Annex B. Uploaded files not analysed</h2>
+  <p class="small text-muted">Not part of the case (no face found, or not a valid JPG/PNG image); the files were erased and their hashes recorded.</p>
+  <table class="table table-sm table-bordered small"><thead class="table-light"><tr><th>Type</th><th>File</th><th>Reason</th><th>SHA-256</th></tr></thead>
+    {% for x in report.skipped %}<tr><td>{{ x.which|capitalize }}</td><td class="text-break">{{ x.filename }}</td><td>{{ x.reason }}</td><td class="sha">{{ x.sha256 }}</td></tr>{% endfor %}</table>
+  {% endif %}
 </div>
 {% endblock %}

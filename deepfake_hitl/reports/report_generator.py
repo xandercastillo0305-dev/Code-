@@ -24,6 +24,7 @@ from reportlab.platypus import (Image as RLImage, Paragraph, SimpleDocTemplate, 
 import config
 import storage
 
+MAX_THUMBNAILS_SUSPECT = 12       # larger cases: thumbnails for the most suspicious only
 UNTRAINED_BANNER = "UNTRAINED MODEL: results not indicative of real accuracy"
 AI_DISCLAIMER = ("The automated analysis is a preliminary, AI-assisted indication only. "
                  "It is not a verdict. The analyst's human-verified conclusion in Section IV "
@@ -46,17 +47,22 @@ def build_report_data(case, users=None):
 
     suspects, references = storage.case_images(case, "suspect"), storage.case_images(case, "reference")
     multi = len(suspects) > 1 or len(references) > 1
+    ranked = storage.ranked_suspects(case)                      # most suspicious first
+    thumb_suspects = {x["n"] for x in ranked[:MAX_THUMBNAILS_SUSPECT]}
     images = []
     for which, items in (("suspect", suspects), ("reference", references)):
         for item in items:
             label = f"{which.capitalize()} image" + (f" #{item['n']}" if multi else "")
             images.append({"which": which, "n": item["n"], "label": label,
-                           "sha256": item.get("sha256") or "—"})
+                           "filename": item.get("filename") or os.path.basename(item.get("path") or ""),
+                           "sha256": item.get("sha256") or "—",
+                           "thumb": which == "reference" or item["n"] in thumb_suspects})
     per_image = []
-    for item in suspects:
+    for item in ranked:
         r = storage.suspect_result(case, item["n"])
         per_image.append({"n": item["n"], "ai": r["ai_classification"], "s": _pct(r["aggregated_score"]),
-                          "ref": r.get("best_reference", 1), "conf": _pct(r["confidence_score"])})
+                          "ref": r.get("best_reference", 1), "conf": _pct(r["confidence_score"]),
+                          "filename": item.get("filename") or ""})
     deciding = storage.suspect_result(case, case.get("deciding_suspect") or 1)
 
     return {
@@ -71,12 +77,17 @@ def build_report_data(case, users=None):
             ("Reviewed By (Analyst)", name(case.get("reviewer_id"))),
         ],
         "images": images,
+        "thumbnails": [i for i in images if i["thumb"]],
+        "all_thumbnails": all(i["thumb"] for i in images),
+        "n_deepfake": sum(1 for r in per_image if r["ai"] == "Deepfake"),
+        "skipped": case.get("skipped_files") or [],
         "multi": multi,
         "per_image": per_image,
         "ai_analysis": [
             ("Preliminary classification", case["ai_classification"]),
         ] + ([
             ("Images analysed", f"{len(suspects)} suspect · {len(references)} reference"),
+            ("Suspect images below τ", f"{sum(1 for x in ranked if x['ai'] == 'Deepfake')} of {len(suspects)}"),
             ("Scores below are for", f"Suspect #{deciding['n']} (most suspicious, lowest S) "
                                      f"vs. Reference #{deciding['best_reference']}"),
         ] if multi else []) + [
@@ -160,7 +171,12 @@ def generate_pdf(case, out_path, users=None, upload_dir=None):
 
     story.append(Paragraph("II. Submitted Images (redacted: blurred face crops only)", h2))
     cells = []
-    for img in data["images"]:
+    if not data["all_thumbnails"]:
+        story.append(Paragraph(
+            f"Showing the {len(data['thumbnails'])} most relevant of {len(data['images'])} images "
+            "(every reference image and the most suspicious suspect images). "
+            "Every image's file name and SHA-256 is listed in Annex A.", small))
+    for img in data["thumbnails"]:
         face = _blurred_face(case["case_id"], img["which"], upload_dir, img["n"])
         cell = [Paragraph(f"<b>{img['label']}</b>", small)]
         if face is not None:
@@ -183,14 +199,15 @@ def generate_pdf(case, out_path, users=None, upload_dir=None):
     if data["multi"]:
         cell = ParagraphStyle("pi", fontName="Helvetica", fontSize=8, leading=10)
         head = ParagraphStyle("pih", parent=cell, fontName="Helvetica-Bold")
-        rows = [[Paragraph(h, head) for h in ("Suspect image", "AI result", "Score S", "Best reference",
-                                               "Confidence")]]
-        rows += [[Paragraph(f"#{r['n']}", cell), Paragraph(r["ai"], cell), Paragraph(r["s"], cell),
-                  Paragraph(f"#{r['ref']}", cell), Paragraph(r["conf"], cell)] for r in data["per_image"]]
-        pt = Table(rows, colWidths=[width / 5] * 5)
+        rows = [[Paragraph(h, head) for h in ("Suspect image", "File", "AI result", "Score S",
+                                               "Best ref.", "Confidence")]]
+        rows += [[Paragraph(f"#{r['n']}", cell), Paragraph(_escape(r["filename"]), cell), Paragraph(r["ai"], cell),
+                  Paragraph(r["s"], cell), Paragraph(f"#{r['ref']}", cell), Paragraph(r["conf"], cell)]
+                 for r in data["per_image"]]
+        pt = Table(rows, colWidths=[w * width for w in (.12, .34, .14, .14, .12, .14)], repeatRows=1)
         pt.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#999999")),
                                 ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e8f0f8"))]))
-        story += [Spacer(1, 4), Paragraph("<b>Per-image results (automated)</b>", small), pt]
+        story += [Spacer(1, 4), Paragraph("<b>Per-image results (automated, most suspicious first)</b>", small), pt]
     story.append(Paragraph(data["disclaimer"], small))
 
     story.append(Paragraph("IV. Human Review", h2))
@@ -200,6 +217,30 @@ def generate_pdf(case, out_path, users=None, upload_dir=None):
 
     story += [Paragraph("V. Sign-off", h2), _kv_table(data["sign_off"], width),
               Spacer(1, 10), Paragraph("Signature: ________________________________", ss["Normal"])]
+
+    if data["skipped"] or not data["all_thumbnails"]:
+        mono = ParagraphStyle("mono", fontName="Courier", fontSize=6, leading=7.5)
+        cell = ParagraphStyle("ac", fontName="Helvetica", fontSize=7.5, leading=9)
+        head = ParagraphStyle("ach", parent=cell, fontName="Helvetica-Bold")
+        grid = TableStyle([("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#999999")),
+                           ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f2f2f2")),
+                           ("VALIGN", (0, 0), (-1, -1), "TOP")])
+        if not data["all_thumbnails"]:
+            rows = [[Paragraph(h, head) for h in ("Image", "File", "SHA-256")]]
+            rows += [[Paragraph(i["label"], cell), Paragraph(_escape(i["filename"]), cell),
+                      Paragraph(i["sha256"], mono)] for i in data["images"]]
+            at = Table(rows, colWidths=[width * .18, width * .3, width * .52], repeatRows=1)
+            at.setStyle(grid)
+            story += [Paragraph("Annex A. All submitted images (chain of custody)", h2), at]
+        if data["skipped"]:
+            rows = [[Paragraph(h, head) for h in ("Type", "File", "Reason", "SHA-256")]]
+            rows += [[Paragraph(x["which"].capitalize(), cell), Paragraph(_escape(x["filename"]), cell),
+                      Paragraph(_escape(x["reason"]), cell), Paragraph(x["sha256"], mono)] for x in data["skipped"]]
+            sk = Table(rows, colWidths=[width * .12, width * .26, width * .2, width * .42], repeatRows=1)
+            sk.setStyle(grid)
+            story += [Paragraph("Annex B. Uploaded files not analysed", h2),
+                      Paragraph("These files were not part of the case (no face found, or not a valid "
+                                "JPG/PNG image) and were erased; their hashes are recorded.", small), sk]
 
     def footer(canvas, doc_):
         canvas.saveState()

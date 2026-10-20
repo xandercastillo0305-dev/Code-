@@ -101,6 +101,15 @@ def suspect_result(case, n):
             "euclidean_similarity": case["euclidean_similarity"], "ssim": case["ssim"]}
 
 
+def ranked_suspects(case):
+    """Suspect images with their AI result, most suspicious (lowest S) first."""
+    items = []
+    for img in case_images(case, "suspect"):
+        r = suspect_result(case, img["n"])
+        items.append(dict(img, ai=r["ai_classification"], s=r["aggregated_score"]))
+    return sorted(items, key=lambda x: (x["s"], x["n"]))
+
+
 def redact(img, mode="blur", strength=None):
     """Blur (Gaussian) or pixelate an image for display."""
     img = ImageOps.exif_transpose(img).convert("RGB")

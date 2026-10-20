@@ -48,7 +48,8 @@
         <span class="small text-muted">Aligned face crops · 380×380</span>
       </div>
       <div class="card-body">
-        {% set suspects = case_images(case, 'suspect') %}
+        {% set suspects = ranked_suspects(case) %}{# most suspicious (lowest S) first #}
+        {% set SHOW = 12 %}
         {% set references = case_images(case, 'reference') %}
         {% set multi = suspects|length > 1 or references|length > 1 %}
         {% set deciding = suspect_result(case, case.deciding_suspect or 1) %}
@@ -56,14 +57,14 @@
         <!-- Suspect face crops, each with its own AI result -->
         <div class="d-flex justify-content-between align-items-baseline mb-2">
           <span class="fw-semibold">Suspect image{{ 's' if suspects|length > 1 }} ({{ suspects|length }})</span>
-          {% if suspects|length > 1 %}<span class="small text-muted">Red outline = most suspicious (decides the case)</span>{% endif %}
+          {% if suspects|length > 1 %}<span class="small text-muted">Most suspicious first · red outline decides the case</span>{% endif %}
         </div>
         <div class="row g-3 mb-3">
           {% for img in suspects %}{% set r = suspect_result(case, img.n) %}
-          <div class="{{ 'col-6' if suspects|length == 1 else 'col-6 col-md-4' }}">
+          <div class="{{ 'col-6' if suspects|length == 1 else 'col-6 col-md-4' }}{{ ' more-faces d-none' if loop.index > SHOW }}">
             <figure class="face-figure mb-0 {{ 'deciding' if multi and img.n == deciding.n }}">
               <span class="face-label face-label-suspect">Suspect{{ ' #' ~ img.n if multi }}</span>
-              <img class="evidence-face" alt="Suspect {{ img.n }} face crop"
+              <img class="evidence-face" loading="lazy" alt="Suspect {{ img.n }} face crop"
                    src="{{ url_for('case_image', case_id=case.case_id, which='suspect', variant='face', n=img.n) }}">
             </figure>
             {% if multi %}
@@ -74,6 +75,10 @@
             {% endif %}
           </div>
           {% endfor %}
+          {% if suspects|length > SHOW %}
+          <div class="col-12"><button type="button" class="btn btn-outline-primary btn-sm w-100 show-more" data-target="more-faces"
+            data-more="Show all {{ suspects|length }} suspect faces" data-less="Show only the {{ SHOW }} most suspicious">Show all {{ suspects|length }} suspect faces</button></div>
+          {% endif %}
           {% if suspects|length == 1 and references|length == 1 %}
           <div class="col-6">
             <figure class="face-figure mb-0">
@@ -141,10 +146,10 @@
           <div class="row g-3">
             {% for which, items in [('suspect', suspects), ('reference', references)] %}{% for img in items %}
             {% set tag = which ~ '-' ~ img.n %}
-            <div class="{{ 'col-6' if not multi else 'col-6 col-md-4' }}">
+            <div class="{{ 'col-6' if not multi else 'col-6 col-md-4' }}{{ ' more-full d-none' if which == 'suspect' and loop.index > SHOW }}">
               <div class="small fw-semibold mb-1">{{ which|capitalize }}{{ ' #' ~ img.n if multi }}</div>
               <div class="full-tile">
-                <img class="evidence-full" id="full-{{ tag }}" alt="{{ which }} {{ img.n }} full image (redacted)"
+                <img class="evidence-full" loading="lazy" id="full-{{ tag }}" alt="{{ which }} {{ img.n }} full image (redacted)"
                      src="{{ url_for('case_image', case_id=case.case_id, which=which, variant='full_pixelated', n=img.n) }}">
                 <span class="redacted-tag" id="tag-{{ tag }}">REDACTED</span>
               </div>
@@ -157,8 +162,24 @@
                 <button type="button" class="btn btn-link btn-sm p-0 copy-btn" data-copy="{{ img.sha256 }}">Copy</button>
               </div>
             </div>
-            {% endfor %}{% endfor %}
+            {% endfor %}
+            {% if which == 'suspect' and items|length > SHOW %}
+            <div class="col-12"><button type="button" class="btn btn-outline-primary btn-sm w-100 show-more" data-target="more-full"
+              data-more="Show all {{ items|length }} suspect images" data-less="Show only the {{ SHOW }} most suspicious">Show all {{ items|length }} suspect images</button></div>
+            {% endif %}
+            {% endfor %}
           </div>
+          {% if case.skipped_files %}
+          <details class="mt-4 skipped-details">
+            <summary class="fw-semibold">{{ case.skipped_files|length }} uploaded file{{ 's' if case.skipped_files|length > 1 }} not analysed</summary>
+            <p class="small text-muted mt-2 mb-2">Not part of the case (no face found, or not a valid JPG/PNG). The files were erased; their SHA-256 is kept for the record.</p>
+            <div class="skipped-box"><table class="table table-sm small mb-0">
+              <thead class="table-light"><tr><th>Type</th><th>File</th><th>Reason</th><th>SHA-256</th></tr></thead>
+              {% for x in case.skipped_files %}<tr><td>{{ x.which|capitalize }}</td><td class="text-break">{{ x.filename }}</td><td>{{ x.reason }}</td>
+                <td><code class="hash" title="{{ x.sha256 }}">{{ x.sha256[:10] }}…</code></td></tr>{% endfor %}
+            </table></div>
+          </details>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -228,7 +249,12 @@
             </div>
             <p class="small text-muted mt-2 mb-0">S = {{ '%.2f'|format(metric_weights.cosine) }}·cosine + {{ '%.2f'|format(metric_weights.euclidean) }}·euclidean + {{ '%.2f'|format(metric_weights.ssim) }}·SSIM. Real if S ≥ τ, otherwise Deepfake.</p>
             {% if multi %}
-            <div class="small fw-semibold mt-3 mb-1">Per-image results</div>
+            {% set n_fake = suspects|selectattr('ai', 'equalto', 'Deepfake')|list|length %}
+            <div class="d-flex justify-content-between align-items-baseline mt-3 mb-1">
+              <span class="small fw-semibold">Per-image results</span>
+              <span class="small"><b class="text-danger-emphasis">{{ n_fake }}</b> of {{ suspects|length }} below τ</span>
+            </div>
+            <div class="per-image-box">
             <table class="table table-sm table-bordered small mb-0">
               <thead class="table-light"><tr><th>Suspect</th><th>AI result</th><th>S</th><th>Best ref.</th><th>Conf.</th></tr></thead>
               {% for img in suspects %}{% set r = suspect_result(case, img.n) %}
@@ -237,6 +263,7 @@
                 <td class="font-monospace">{{ '%.0f'|format(r.confidence_score*100) }}%</td></tr>
               {% endfor %}
             </table>
+            </div>
             {% endif %}
           </div>
         </div>

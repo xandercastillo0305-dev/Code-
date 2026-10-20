@@ -78,3 +78,19 @@ def test_load_model_falls_back_and_flags_untrained(monkeypatch, tmp_path):
     monkeypatch.setattr(model_mod, "HybridCNNTransformer", lambda pretrained=True, **kw: Dummy())
     b = model_mod.load_model(str(tmp_path / "missing.pt"), device="cpu")
     assert b.model_trained is False and "untrained" in b.model_version
+
+
+def test_verify_case_chunking_and_progress(tmp_path, stub_bundle):
+    from pipeline.verify import verify_case
+    from tests.conftest import StubDetector, make_face_image
+    sus = [make_face_image(tmp_path / f"s{i}.png", seed=i, variant=1) for i in range(7)]
+    refs = [make_face_image(tmp_path / f"r{i}.png", seed=50 + i) for i in range(2)]
+    calls = []
+    pre = FacePreprocessor(detector=StubDetector())
+    small = verify_case(sus, refs, preprocessor=pre, model_bundle=stub_bundle, chunk=3,
+                        progress=lambda *a: calls.append(a))
+    big = verify_case(sus, refs, preprocessor=pre, model_bundle=stub_bundle, chunk=64)
+    assert [round(r["aggregated_score"], 6) for r in small["suspect_results"]] == \
+           [round(r["aggregated_score"], 6) for r in big["suspect_results"]]
+    assert calls[-1][1] == calls[-1][2] and {c[0] for c in calls} >= {"Detecting faces", "Extracting features"}
+    assert small["skipped"] == [] and small["analyzed"]["suspect"] == list(range(7))

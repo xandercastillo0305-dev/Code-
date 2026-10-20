@@ -72,11 +72,16 @@ python demo/make_demo_samples.py     # writes demo/samples/*.png (see demo/READM
 
 ## 3. Using the system
 
-1. **Investigator** → *Submit case*: upload **one or more** suspect images (up to 10) and **one or
-   more** reference images (up to 5) of the same subject (JPG/PNG, ≤10 MB each). Pick several at once
-   or click *Choose file* again to add more; *Remove* drops one. Tick the adults-only / authorization
-   attestation and submit. The SHA-256 of every file is recorded, the pipeline runs, and the case
-   enters the queue as `pending`.
+1. **Investigator** → *Submit case*: add suspect images (up to 500) and reference images (up to 10)
+   of the same subject with **+ Add files**, **+ Add folder**, or by dragging files or a whole folder
+   onto the box (JPG/PNG, ≤10 MB each, ≤2 GB per submission). Other files in a folder (notes, Thumbs.db…)
+   are left out automatically. Tick the adults-only / authorization attestation and submit.
+   An upload bar shows the transfer; then a **progress page** shows the analysis (loading the model →
+   detecting faces → extracting features → comparing). You can leave the page; the case appears in
+   *My cases* when it is finished. On a laptop CPU, expect roughly **0.5–2 s per image**
+   (100 images took about one minute in testing).
+   The SHA-256 of every file is recorded. Files that cannot be analysed (no face, not a valid image)
+   are **left out of the case**, erased, and listed with their hash and reason.
    If no face is found, the message is *"No face detected. Case cannot be analyzed."* and no case is created.
 2. **Analyst** → *Dashboard*: shows pending/verified/flagged counts and the live AI–human agreement rate.
    You can filter by status. Open a pending case with *Review*.
@@ -238,6 +243,16 @@ model (random init) and checks the tensor shapes.
   vectors, 0–2), so all three metrics and S lie in [0, 1]. SSIM is clipped to [0, 1].
 * **ViT input.** The ViT branch internally resizes the 380×380 face to 384×384, because
   patch-16 ViTs need a size divisible by 16.
+* **Large uploads (folder of 10–500 images).** The analysis runs in a background worker (one
+  submission at a time), the model processes faces in batches of 16 (`config.BATCH_SIZE`) so memory
+  stays flat, and the review page / report show the most suspicious images first (the 12 lowest S,
+  with "Show all"). The report lists every image's file name and SHA-256 in Annex A and the files
+  that were not analysed in Annex B.
+* **No face in some images (Line 4).** With one suspect and one reference image the behaviour is
+  unchanged: no face → the case stops with *"No face detected. Case cannot be analyzed."* In a
+  multi-image upload, an image without a face is skipped (and recorded) instead of stopping the
+  whole case; the case stops only if no suspect or no reference image has a face. The manuscript's
+  algorithm text should mention this.
 * **Multiple images per case.** A case may hold up to 10 suspect and 5 reference images. Each
   suspect image is compared with every reference image and keeps its **best** match (highest S).
   The case is **Deepfake if any suspect image** has S < τ; the case-level metrics, label and

@@ -12,11 +12,23 @@ The AI pipeline produces a <b>preliminary</b> classification; a forensic analyst
         ('suspect', 'Suspect images', max_suspect_images, 'The image(s) under examination.'),
         ('reference', 'Reference images', max_reference_images, 'Known authentic image(s) of the same subject.')] %}
     <div class="col-md-6">
-      <label class="form-label fw-semibold" for="{{ which }}">{{ label }}</label>
-      <input class="form-control multi-file" type="file" id="{{ which }}" name="{{ which }}" multiple
-             data-limit="{{ limit }}" data-label="{{ label|lower }}" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
+      <div class="fw-semibold mb-2">{{ label }}</div>
+      <div class="drop-zone" data-which="{{ which }}" data-limit="{{ limit }}" data-label="{{ label|lower }}">
+        <input type="file" class="d-none" name="{{ which }}" id="{{ which }}" multiple>
+        <input type="file" class="d-none pick-files" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png">
+        <input type="file" class="d-none pick-folder" webkitdirectory directory multiple>
+        <div class="drop-hint">Drag files or a folder here</div>
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
+          <button type="button" class="btn btn-outline-primary btn-sm add-files">+ Add files</button>
+          <button type="button" class="btn btn-outline-primary btn-sm add-folder">+ Add folder</button>
+        </div>
+      </div>
       <div class="form-text">{{ help }} Up to {{ limit }} files, JPG or PNG, max {{ max_upload_mb }} MB each.
-        You can choose several at once or click <b>Choose file</b> again to add more.</div>
+        Other files in a folder are left out automatically.</div>
+      <div class="file-summary d-none" id="{{ which }}-summary">
+        <span class="count"></span>
+        <button type="button" class="btn btn-link btn-sm p-0 text-danger clear-all">Clear all</button>
+      </div>
       <ul class="file-list" id="{{ which }}-list"></ul>
     </div>
     {% endfor %}
@@ -27,48 +39,118 @@ The AI pipeline produces a <b>preliminary</b> classification; a forensic analyst
   </div>
   <p class="small text-muted mt-2 mb-3">A SHA-256 hash of each file is recorded for chain of custody. Images are stored outside the public web folder and shown redacted.</p>
   <button class="btn btn-primary" id="submit-btn">Submit for analysis</button>
-  <span class="ms-2 text-muted small d-none" id="working">Running AI analysis… this can take a few seconds on CPU.</span>
+  <div class="mt-3 d-none" id="upload-box">
+    <div class="d-flex justify-content-between small mb-1"><span id="upload-label">Uploading…</span><span id="upload-pct">0%</span></div>
+    <div class="job-track"><div class="job-fill" id="upload-fill" style="width:0%"></div></div>
+  </div>
 </form>
 </div></div>
 {% endblock %}
 {% block scripts %}
 <script>
-// Keep every file the user picks (several "Choose file" clicks add up) and let them remove one.
-var picked = {};
-document.querySelectorAll('.multi-file').forEach(function (input) {
-  var dt = new DataTransfer(), list = document.getElementById(input.id + '-list');
-  picked[input.id] = dt;
-  function render() {
-    input.files = dt.files;
-    list.innerHTML = '';
-    Array.from(dt.files).forEach(function (f, i) {
-      var li = document.createElement('li');
-      li.innerHTML = '<span>#' + (i + 1) + ' ' + f.name.replace(/</g, '&lt;') + ' <span class="text-muted">(' + (f.size / 1048576).toFixed(1) + ' MB)</span></span>';
-      var x = document.createElement('button');
-      x.type = 'button'; x.className = 'btn btn-link btn-sm p-0 text-danger'; x.textContent = 'Remove';
-      x.onclick = function () {
-        var keep = new DataTransfer();
-        Array.from(dt.files).forEach(function (g, k) { if (k !== i) keep.items.add(g); });
-        dt = picked[input.id] = keep; render();
-      };
-      li.appendChild(x); list.appendChild(li);
+(function () {
+  var OK = /\.(jpe?g|png)$/i, MAX_TOTAL = {{ max_total_upload_mb }} * 1048576, MAX_EACH = {{ max_upload_mb }} * 1048576;
+  var zones = {};
+
+  function esc(t) { return t.replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function mb(n) { return (n / 1048576).toFixed(1) + ' MB'; }
+
+  document.querySelectorAll('.drop-zone').forEach(function (zone) {
+    var which = zone.dataset.which, limit = +zone.dataset.limit;
+    var real = document.getElementById(which), list = document.getElementById(which + '-list');
+    var summary = document.getElementById(which + '-summary');
+    var st = zones[which] = { files: [], label: zone.dataset.label, ignored: 0 };
+
+    function render() {
+      var dt = new DataTransfer();
+      st.files.forEach(function (f) { dt.items.add(f); });
+      real.files = dt.files;
+      var size = st.files.reduce(function (a, f) { return a + f.size; }, 0);
+      summary.classList.toggle('d-none', !st.files.length && !st.ignored);
+      summary.querySelector('.count').innerHTML = '<b>' + st.files.length + '</b> image' + (st.files.length === 1 ? '' : 's') +
+        ' · ' + mb(size) + (st.ignored ? ' · <span class="text-muted">' + st.ignored + ' other file(s) left out</span>' : '');
+      list.innerHTML = st.files.map(function (f, i) {
+        var big = f.size > MAX_EACH ? ' <span class="text-danger">(over {{ max_upload_mb }} MB, will be skipped)</span>' : '';
+        return '<li><span>#' + (i + 1) + ' ' + esc(f.webkitRelativePath || f.name) + ' <span class="text-muted">(' + mb(f.size) + ')</span>' + big +
+          '</span><button type="button" class="btn btn-link btn-sm p-0 text-danger" data-i="' + i + '">Remove</button></li>';
+      }).join('');
+    }
+    function add(files) {
+      var over = 0;
+      files = files.slice().sort(function (a, b) {
+        return (a.webkitRelativePath || a.name).localeCompare(b.webkitRelativePath || b.name, undefined, { numeric: true });
+      });
+      files.forEach(function (f) {
+        if (!OK.test(f.name)) { if (!/^\.|^(thumbs\.db|desktop\.ini)$/i.test(f.name)) st.ignored++; return; }
+        if (st.files.some(function (g) { return g.name === f.name && g.size === f.size && (g.webkitRelativePath || '') === (f.webkitRelativePath || ''); })) return;
+        if (st.files.length < limit) st.files.push(f); else over++;
+      });
+      if (over) alert('Only ' + limit + ' ' + st.label + ' per case; ' + over + ' file(s) were not added.');
+      render();
+    }
+    zone.querySelector('.add-files').onclick = function () { zone.querySelector('.pick-files').click(); };
+    zone.querySelector('.add-folder').onclick = function () { zone.querySelector('.pick-folder').click(); };
+    zone.querySelectorAll('.pick-files, .pick-folder').forEach(function (inp) {
+      inp.onchange = function () { add(Array.from(inp.files)); inp.value = ''; };
     });
-  }
-  input.addEventListener('change', function () {
-    var limit = +input.dataset.limit, skipped = 0;
-    Array.from(input.files).forEach(function (f) {
-      if (Array.from(dt.files).some(function (g) { return g.name === f.name && g.size === f.size; })) return;
-      if (dt.files.length < limit) dt.items.add(f); else skipped++;
+    list.onclick = function (e) {
+      if (e.target.dataset.i === undefined) return;
+      st.files.splice(+e.target.dataset.i, 1); render();
+    };
+    summary.querySelector('.clear-all').onclick = function () { st.files = []; st.ignored = 0; render(); };
+
+    // drag and drop: files and whole folders (read recursively)
+    function readEntry(entry, out) {
+      return new Promise(function (done) {
+        if (entry.isFile) { entry.file(function (f) { out.push(f); done(); }, done); return; }
+        var reader = entry.createReader(), all = [];
+        (function more() {
+          reader.readEntries(function (batch) {
+            if (!batch.length) { Promise.all(all.map(function (e) { return readEntry(e, out); })).then(done); return; }
+            all = all.concat(Array.from(batch)); more();
+          }, done);
+        })();
+      });
+    }
+    zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.classList.add('over'); });
+    zone.addEventListener('dragleave', function () { zone.classList.remove('over'); });
+    zone.addEventListener('drop', function (e) {
+      e.preventDefault(); zone.classList.remove('over');
+      var entries = Array.from(e.dataTransfer.items || []).map(function (it) { return it.webkitGetAsEntry && it.webkitGetAsEntry(); })
+        .filter(Boolean), out = [];
+      if (!entries.length) { add(Array.from(e.dataTransfer.files)); return; }
+      Promise.all(entries.map(function (en) { return readEntry(en, out); })).then(function () { add(out); });
     });
-    if (skipped) alert('Only ' + limit + ' ' + input.dataset.label + ' per case; ' + skipped + ' file(s) were not added.');
-    render();
   });
-});
-document.getElementById('submit-form').addEventListener('submit', function (e) {
-  var missing = Array.from(document.querySelectorAll('.multi-file')).filter(function (i) { return !picked[i.id].files.length; });
-  if (missing.length) { e.preventDefault(); alert('Please choose at least one ' + missing[0].dataset.label.replace(/s$/, '') + '.'); return; }
-  document.getElementById('submit-btn').disabled = true;
-  document.getElementById('working').classList.remove('d-none');
-});
+
+  // upload with a progress bar, then go to the analysis progress page
+  var form = document.getElementById('submit-form');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var missing = Object.keys(zones).filter(function (w) { return !zones[w].files.length; });
+    if (missing.length) { alert('Please add at least one ' + zones[missing[0]].label.replace(/s$/, '') + '.'); return; }
+    if (!document.getElementById('attest').checked) { alert('Please tick the attestation box.'); return; }
+    var total = Object.keys(zones).reduce(function (a, w) { return a + zones[w].files.reduce(function (b, f) { return b + f.size; }, 0); }, 0);
+    if (total > MAX_TOTAL) { alert('The files add up to ' + mb(total) + '; the limit per submission is {{ max_total_upload_mb }} MB.'); return; }
+
+    var btn = document.getElementById('submit-btn'), box = document.getElementById('upload-box');
+    btn.disabled = true; box.classList.remove('d-none');
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', form.action || window.location.href);
+    xhr.upload.onprogress = function (ev) {
+      if (!ev.lengthComputable) return;
+      var p = Math.round(100 * ev.loaded / ev.total);
+      document.getElementById('upload-fill').style.width = p + '%';
+      document.getElementById('upload-pct').textContent = p + '%';
+      document.getElementById('upload-label').textContent = p < 100 ? 'Uploading ' + mb(ev.loaded) + ' of ' + mb(ev.total) + '…' : 'Checking files…';
+    };
+    xhr.onload = function () {
+      if (xhr.responseURL && xhr.responseURL.indexOf('/jobs/') !== -1) { window.location = xhr.responseURL; return; }
+      document.open(); document.write(xhr.responseText); document.close();    // validation error page
+    };
+    xhr.onerror = function () { alert('Upload failed. Check the connection and try again.'); btn.disabled = false; box.classList.add('d-none'); };
+    xhr.send(new FormData(form));
+  });
+})();
 </script>
 {% endblock %}

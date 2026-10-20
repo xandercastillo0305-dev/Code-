@@ -32,7 +32,7 @@ def make_app(tmp_path, detector=None):
         "CASES_PATH": str(data / "cases.json"), "USERS_PATH": str(data / "users.json"),
         "AUDIT_LOG_PATH": str(data / "audit_log.jsonl"),
         "HYBRID_WEIGHTS_PATH": str(tmp_path / "none.pt"),
-        "VERIFY_FN": lambda s, r, tau: verify_case(s, r, tau, preprocessor=pre, model_bundle=bundle),
+        "VERIFY_FN": lambda s, r, tau, **kw: verify_case(s, r, tau, preprocessor=pre, model_bundle=bundle, **kw),
     })
     us = app.extensions["user_store"]
     us.create("INV-01", "Investigator", "investigator", PASSWORD)
@@ -147,7 +147,9 @@ def test_no_face_shows_error_and_creates_no_case(tmp_path):
     app = make_app(tmp_path, detector=NoFaceDetector())
     c = login(app.test_client(), "INV-01")
     resp, _, _ = upload(c, tmp_path)
-    assert resp.status_code == 422 and b"No face detected. Case cannot be analyzed." in resp.data
+    assert resp.status_code == 302 and "/jobs/" in resp.headers["Location"]
+    status = c.get(resp.headers["Location"] + "/status").get_json()
+    assert status["state"] == "failed" and "No face detected. Case cannot be analyzed." in status["error"]
     assert app.extensions["case_store"].list() == []
     incoming = os.path.join(app.config["UPLOAD_DIR"], "_incoming")
     assert not os.path.exists(incoming) or os.listdir(incoming) == []
@@ -212,3 +214,65 @@ def test_too_many_suspect_images_rejected(app, tmp_path):
     resp = c.post("/cases/new", data=data, content_type="multipart/form-data")
     assert resp.status_code in (200, 400)
     assert app.extensions["case_store"].list() == []
+
+
+def test_folder_upload_with_many_files(tmp_path):
+    """A whole folder: 40 faces, plus a picture with no face and files that are not images."""
+    from PIL import Image
+    from tests.conftest import BlankMeansNoFaceDetector
+    app = make_app(tmp_path, detector=BlankMeansNoFaceDetector())
+    c = login(app.test_client(), "INV-01")
+    sus = [make_face_image(tmp_path / f"s{i:02d}.png", seed=i, variant=i % 3) for i in range(40)]
+    blank = tmp_path / "blank.png"
+    Image.new("RGB", (200, 200), (90, 90, 90)).save(blank)
+    ref = make_face_image(tmp_path / "ref.png", seed=99)
+    suspect_files = [(open(p, "rb"), f"evidence/{os.path.basename(p)}") for p in sus]
+    suspect_files += [(open(blank, "rb"), "evidence/blank.png"),
+                      (io.BytesIO(b"case notes"), "evidence/notes.txt"),
+                      (io.BytesIO(b"x"), "evidence/Thumbs.db")]
+    data = {"suspect": suspect_files, "attest": "yes",
+            "reference": [(open(ref, "rb"), "ref.png"), (open(blank, "rb"), "ref_blank.png")]}
+    resp = c.post("/cases/new", data=data, content_type="multipart/form-data")
+    assert resp.status_code == 302 and "/jobs/" in resp.headers["Location"]
+    assert c.get(resp.headers["Location"]).status_code == 200
+    status = c.get(resp.headers["Location"] + "/status").get_json()
+    assert status["state"] == "done" and status["percent"] == 100, status
+
+    case = app.extensions["case_store"].get(status["case_id"])
+    assert len(case["suspect_images"]) == 40 and len(case["reference_images"]) == 1
+    assert [i["sha256"] for i in case["suspect_images"]] == [sha256_file(p) for p in sus]
+    assert len(case["suspect_results"]) == 40
+    skipped = {(x["which"], x["filename"]): x for x in case["skipped_files"]}
+    assert set(skipped) == {("suspect", "blank.png"), ("suspect", "notes.txt"), ("reference", "ref_blank.png")}
+    assert skipped[("suspect", "blank.png")]["reason"] == "No face detected"
+    assert skipped[("suspect", "notes.txt")]["sha256"] == sha256_file_bytes(b"case notes")
+    # only analysed files are kept on disk, renumbered 1..k
+    folder = os.path.join(app.config["UPLOAD_DIR"], case["case_id"])
+    originals = [f for f in os.listdir(folder) if "_face" not in f]
+    assert len(originals) == 41 and "suspect_40.png" in originals and "suspect_41.png" not in originals
+
+    a = login(app.test_client(), "ANA-01")
+    page = a.get(f"/cases/{case['case_id']}/review").get_data(as_text=True)
+    assert "Show all 40 suspect faces" in page and "3 uploaded files not analysed" in page
+    assert a.post(f"/cases/{case['case_id']}/review",
+                  data={"decision": "Flag", "rationale": RATIONALE}).status_code == 302
+    report = a.get(f"/cases/{case['case_id']}/report").get_data(as_text=True)
+    assert "Annex A" in report and "Annex B" in report and "notes.txt" in report
+    pdf = a.get(f"/cases/{case['case_id']}/report.pdf")
+    assert pdf.status_code == 200 and pdf.data[:4] == b"%PDF"
+
+
+def sha256_file_bytes(data):
+    import hashlib
+    return hashlib.sha256(data).hexdigest()
+
+
+def test_job_page_is_private(tmp_path):
+    app = make_app(tmp_path)
+    app.extensions["user_store"].create("INV-02", "Other", "investigator", PASSWORD)
+    c = login(app.test_client(), "INV-01")
+    resp, _, _ = upload(c, tmp_path)
+    url = resp.headers["Location"]
+    other = app.test_client()
+    other.post("/login", data={"user_id": "INV-02", "password": PASSWORD, "role": "investigator"})
+    assert other.get(url + "/status").status_code == 404

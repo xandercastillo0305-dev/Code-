@@ -12,7 +12,7 @@ import shutil
 import uuid
 
 import click
-from flask import (Flask, Response, abort, flash, redirect, render_template, request,
+from flask import (Flask, Request, Response, abort, flash, redirect, render_template, request,
                    send_file, session, url_for)
 from flask_login import LoginManager, current_user, login_required, login_user, logout_user
 from PIL import Image
@@ -20,6 +20,7 @@ from werkzeug.utils import secure_filename
 
 import config
 import storage
+from jobs import JobRegistry
 from evaluation.evaluate_agreement import agreement_summary
 from pipeline.classifier import opposite
 from pipeline.preprocessing import NoFaceDetectedError
@@ -40,9 +41,29 @@ ATTESTATION_TEXT = ("I attest that the subject is an adult (18+) and that I am a
                     "to submit this material.")
 
 
-def default_verify(suspect_paths, reference_paths, tau):
+def default_verify(suspect_paths, reference_paths, tau, progress=None):
     from pipeline.verify import verify_case
-    return verify_case(suspect_paths, reference_paths, tau)
+    return verify_case(suspect_paths, reference_paths, tau, progress=progress)
+
+
+class _UploadRequest(Request):
+    # a folder upload can hold hundreds of files (werkzeug's default limit is 1,000 form parts)
+    max_form_parts = config.MAX_SUSPECT_IMAGES + config.MAX_REFERENCE_IMAGES + 100
+
+
+# Files the operating system puts in folders; ignored without comment.
+_SYSTEM_FILES = {"thumbs.db", "desktop.ini", ".ds_store"}
+
+
+def _ignorable(filename):
+    base = filename.replace("\\", "/").rsplit("/", 1)[-1]
+    return base.startswith(".") or base.lower() in _SYSTEM_FILES
+
+
+def _display_name(filename):
+    """Original file name for the record: base name only, made safe."""
+    base = filename.replace("\\", "/").rsplit("/", 1)[-1]
+    return secure_filename(base) or "image"
 
 
 def create_app(overrides=None):
@@ -58,8 +79,7 @@ def create_app(overrides=None):
         HYBRID_WEIGHTS_PATH=config.HYBRID_WEIGHTS_PATH,
         THRESHOLD_TAU=config.THRESHOLD_TAU,
         MIN_RATIONALE_LENGTH=config.MIN_RATIONALE_LENGTH,
-        MAX_CONTENT_LENGTH=((config.MAX_SUSPECT_IMAGES + config.MAX_REFERENCE_IMAGES) * config.MAX_UPLOAD_MB + 1)
-                           * 1024 * 1024,
+        MAX_CONTENT_LENGTH=config.MAX_TOTAL_UPLOAD_MB * 1024 * 1024,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         CSRF_ENABLED=True,
@@ -71,7 +91,10 @@ def create_app(overrides=None):
     for key in ("UPLOAD_DIR", "REPORT_DIR"):
         os.makedirs(app.config[key], exist_ok=True)
 
+    app.request_class = _UploadRequest
     cases = CaseStore(app.config["CASES_PATH"])
+    jobs = JobRegistry(sync=app.config.get("JOBS_SYNC", app.config.get("TESTING", False)))
+    app.extensions["jobs"] = jobs
     users = UserStore(app.config["USERS_PATH"])
     app.extensions["case_store"] = cases
     app.extensions["user_store"] = users
@@ -116,8 +139,10 @@ def create_app(overrides=None):
             "max_upload_mb": config.MAX_UPLOAD_MB,
             "max_suspect_images": config.MAX_SUSPECT_IMAGES,
             "max_reference_images": config.MAX_REFERENCE_IMAGES,
+            "max_total_upload_mb": config.MAX_TOTAL_UPLOAD_MB,
             "case_images": storage.case_images,
             "suspect_result": storage.suspect_result,
+            "ranked_suspects": storage.ranked_suspects,
             "metric_weights": config.METRIC_WEIGHTS,
         }
 
@@ -190,62 +215,91 @@ def create_app(overrides=None):
             return render_template("submit.html", attestation=ATTESTATION_TEXT), 400
 
         limits = {"suspect": config.MAX_SUSPECT_IMAGES, "reference": config.MAX_REFERENCE_IMAGES}
-        files = {}
+        incoming = os.path.join(app.config["UPLOAD_DIR"], "_incoming", uuid.uuid4().hex)
+        os.makedirs(incoming)
+        saved = {"suspect": [], "reference": []}   # (filename on disk, original name, sha256)
+        skipped = []                               # files that cannot be analysed, with the reason
         try:
             for which in storage.ROLES_IMAGES:
-                chosen = [f for f in request.files.getlist(which) if f and f.filename]
-                if not chosen:
-                    raise storage.UploadError(f"At least one {which} image is required.")
+                chosen = [f for f in request.files.getlist(which)
+                          if f and f.filename and not _ignorable(f.filename)]
                 if len(chosen) > limits[which]:
                     raise storage.UploadError(
                         f"Too many {which} images: {len(chosen)} (maximum {limits[which]} per case).")
-                files[which] = []
                 for f in chosen:
-                    data = f.read()
-                    files[which].append((storage.validate_image_bytes(f.filename, data), data,
-                                         secure_filename(f.filename) or "image"))
+                    original = _display_name(f.filename)
+                    data = f.read()                          # one file at a time (max 10 MB)
+                    digest = storage.sha256_bytes(data)      # chain of custody, even for skipped files
+                    try:
+                        ext = storage.validate_image_bytes(original, data)
+                    except storage.UploadError as exc:
+                        skipped.append({"which": which, "filename": original, "sha256": digest,
+                                        "reason": str(exc).split(": ", 1)[-1]})
+                        continue
+                    name = f"{which}_{len(saved[which]) + 1}{ext}"
+                    with open(os.path.join(incoming, name), "wb") as out:
+                        out.write(data)
+                    saved[which].append((name, original, digest))
+                if not saved[which]:
+                    bad = [f"{x['filename']}: {x['reason']}" for x in skipped if x["which"] == which]
+                    detail = (" Not accepted: " + "; ".join(bad[:3]) + (" …" if len(bad) > 3 else "")) if bad else ""
+                    raise storage.UploadError(f"At least one valid {which} image is required.{detail}")
         except storage.UploadError as exc:
+            storage.secure_delete_tree(incoming)
             flash(str(exc), "danger")
             return render_template("submit.html", attestation=ATTESTATION_TEXT), 400
 
-        incoming = os.path.join(app.config["UPLOAD_DIR"], "_incoming", uuid.uuid4().hex)
-        os.makedirs(incoming)
-        saved = {"suspect": [], "reference": []}           # (filename on disk, original name, sha256)
-        for which, items in files.items():
-            for n, (ext, data, original) in enumerate(items, start=1):
-                name = f"{which}_{n}{ext}"
-                with open(os.path.join(incoming, name), "wb") as out:
-                    out.write(data)
-                saved[which].append((name, original, storage.sha256_bytes(data)))   # chain of custody
-        hashes = {w: [h for _, _, h in saved[w]] for w in saved}
+        user_id = current_user.id
+        job = jobs.create(user_id, len(saved["suspect"]), len(saved["reference"]), skipped)
+        jobs.submit(job["id"], functools.partial(_analyse_submission, user_id, incoming, saved, skipped))
+        return redirect(url_for("job_status_page", job_id=job["id"]))
 
+    def _analyse_submission(user_id, incoming, saved, skipped, progress):
+        """Runs in the background worker: AI analysis -> case record (Algorithm Lines 1-17)."""
+        hashes = {w: [h for _, _, h in saved[w]] for w in saved}
         try:
             result = app.config["VERIFY_FN"](
                 [os.path.join(incoming, name) for name, _, _ in saved["suspect"]],
                 [os.path.join(incoming, name) for name, _, _ in saved["reference"]],
-                app.config["THRESHOLD_TAU"])
+                app.config["THRESHOLD_TAU"], progress=progress)
         except NoFaceDetectedError as exc:
             storage.secure_delete_tree(incoming)
-            audit("case_rejected", reason=str(exc), suspect_sha256=hashes["suspect"],
+            audit("case_rejected", user_id=user_id, reason=str(exc), suspect_sha256=hashes["suspect"],
                   reference_sha256=hashes["reference"])
-            flash(str(exc), "danger")
-            return render_template("submit.html", attestation=ATTESTATION_TEXT), 422
+            raise
+        except Exception:
+            storage.secure_delete_tree(incoming)
+            raise
+
+        # Images without a face are not part of the case: list them (with hash) and erase the file.
+        for item in result.get("skipped", []):
+            name, original, digest = saved[item["which"]][item["index"]]
+            storage.secure_delete_file(os.path.join(incoming, name))
+            skipped.append({"which": item["which"], "filename": original, "sha256": digest,
+                            "reason": item["reason"]})
 
         case_id = cases.reserve_case_id()
         final_dir = storage.case_dir(case_id, app.config["UPLOAD_DIR"])
-        shutil.move(incoming, final_dir)
+        os.makedirs(final_dir)
+        listings = {}
         for which in storage.ROLES_IMAGES:
+            analysed = result.get("analyzed", {}).get(which, range(len(saved[which])))
+            listings[which] = []
+            for n, index in enumerate(analysed, start=1):            # renumber 1..k
+                name, original, digest = saved[which][index]
+                final_name = f"{which}_{n}{os.path.splitext(name)[1]}"
+                shutil.move(os.path.join(incoming, name), os.path.join(final_dir, final_name))
+                listings[which].append({
+                    "n": n, "path": os.path.relpath(os.path.join(final_dir, final_name), app.config["DATA_DIR"]),
+                    "filename": original, "sha256": digest})
             for n, face in enumerate(result[f"{which}_faces"], start=1):
                 face.save(storage.face_path(case_id, which, app.config["UPLOAD_DIR"], n))
+        storage.secure_delete_tree(incoming)
+        suspect_list, reference_list = listings["suspect"], listings["reference"]
 
-        def listing(which):
-            return [{"n": n, "path": os.path.relpath(os.path.join(final_dir, name), app.config["DATA_DIR"]),
-                     "filename": original, "sha256": digest}
-                    for n, (name, original, digest) in enumerate(saved[which], start=1)]
-        suspect_list, reference_list = listing("suspect"), listing("reference")
         record = {
             "case_id": case_id,
-            "submitted_by": current_user.id,
+            "submitted_by": user_id,
             "submitted_at": now_iso(),
             "suspect_image": suspect_list[0]["path"],
             "reference_image": reference_list[0]["path"],
@@ -271,14 +325,37 @@ def create_app(overrides=None):
             "reference_images": reference_list,
             "suspect_results": result["suspect_results"],
             "deciding_suspect": result["deciding_suspect"],
+            "skipped_files": skipped,
         }
         cases.add_case(record)          # Algorithm Line 17: add case to the queue as "pending"
-        audit("case_submitted", case_id, suspect_sha256=hashes["suspect"],
-              reference_sha256=hashes["reference"], attestation=True)
-        n_s, n_r = len(suspect_list), len(reference_list)
-        flash(f"{case_id} submitted with {n_s} suspect and {n_r} reference "
-              f"image{'s' if n_s + n_r > 2 else ''}, and queued for analyst review.", "success")
-        return redirect(url_for("my_cases"))
+        audit("case_submitted", case_id, user_id=user_id,
+              suspect_sha256=[i["sha256"] for i in suspect_list],
+              reference_sha256=[i["sha256"] for i in reference_list],
+              skipped=[{"filename": x["filename"], "sha256": x["sha256"], "reason": x["reason"]}
+                       for x in skipped], attestation=True)
+        return case_id
+
+    def _own_job_or_404(job_id):
+        job = jobs.get(job_id)
+        if not job or (job["user_id"] != current_user.id and current_user.role != ADMIN):
+            abort(404)
+        return job
+
+    @app.route("/jobs/<job_id>")
+    @login_required
+    def job_status_page(job_id):
+        return render_template("job.html", job=_own_job_or_404(job_id))
+
+    @app.route("/jobs/<job_id>/status")
+    @login_required
+    def job_status(job_id):
+        job = _own_job_or_404(job_id)
+        pct = 100 if job["state"] == "done" else int(100 * job["done"] / job["total"]) if job["total"] else 0
+        return {"state": job["state"], "stage": job["stage"], "done": job["done"], "total": job["total"],
+                "percent": pct, "case_id": job["case_id"], "error": job["error"],
+                "queue_position": jobs.queue_position(job_id) if job["state"] == "queued" else 0,
+                "skipped_count": len(cases.get(job["case_id"]).get("skipped_files") or [])
+                                 if job["state"] == "done" else 0}
 
     @app.route("/cases/mine")
     @roles_required(INVESTIGATOR)
@@ -473,7 +550,8 @@ def create_app(overrides=None):
     @app.errorhandler(413)
     def too_large(e):
         return render_template("error.html", code=413,
-                               message=f"Upload too large (max {config.MAX_UPLOAD_MB} MB per image)."), 413
+                               message=f"Upload too large (max {config.MAX_UPLOAD_MB} MB per image and "
+                                       f"{config.MAX_TOTAL_UPLOAD_MB} MB per submission)."), 413
 
     register_cli(app, cases, users, audit)
     return app

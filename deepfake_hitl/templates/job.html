@@ -1,0 +1,80 @@
+{% extends "base.html" %}{% block title %}Analysing case{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-8">
+<h1 class="h3 mb-1">Analysing your submission</h1>
+<p class="text-muted">{{ job.n_suspect }} suspect and {{ job.n_reference }} reference image{{ 's' if job.n_suspect + job.n_reference > 1 }}
+  · submitted {{ job.created_at }}</p>
+
+<div class="card shadow-sm"><div class="card-body p-4" id="job" data-url="{{ url_for('job_status', job_id=job.id) }}"
+     data-mine="{{ url_for('my_cases') if current_user.role == 'investigator' else url_for('dashboard') }}">
+  <div class="d-flex justify-content-between align-items-baseline mb-2">
+    <span class="fw-semibold" id="job-stage">{{ job.stage }}</span>
+    <span class="font-monospace" id="job-count"></span>
+  </div>
+  <div class="job-track"><div class="job-fill" id="job-fill" style="width:0%"></div></div>
+  <div class="d-flex justify-content-between small text-muted mt-2">
+    <span id="job-note">You can leave this page; the analysis keeps running and the case appears in <b>My cases</b> when it is finished.</span>
+    <span id="job-pct">0%</span>
+  </div>
+
+  <div class="alert alert-success mt-4 mb-0 d-none" id="job-done">
+    <b id="job-case"></b> was analysed and is now waiting for analyst review.
+    <div class="small mt-1 d-none" id="job-skipped"></div>
+    <div class="mt-3"><a class="btn btn-primary btn-sm" id="job-link" href="#">Go to my cases</a></div>
+  </div>
+  <div class="alert alert-danger mt-4 mb-0 d-none" id="job-failed">
+    <b>The case could not be analysed.</b> <span id="job-error"></span>
+    <div class="mt-3"><a class="btn btn-outline-light btn-sm" href="{{ url_for('submit_case') if current_user.role == 'investigator' else url_for('index') }}">Submit again</a></div>
+  </div>
+</div></div>
+
+{% if job.skipped %}
+<div class="card shadow-sm mt-3"><div class="card-body">
+  <div class="fw-semibold mb-2">{{ job.skipped|length }} file{{ 's' if job.skipped|length > 1 }} not analysed</div>
+  <p class="small text-muted mb-2">These files were not valid JPG/PNG images, so they are not part of the case. Their SHA-256 is still recorded in the audit log.</p>
+  <div class="skipped-box"><table class="table table-sm small mb-0">
+    <thead class="table-light"><tr><th>Type</th><th>File</th><th>Reason</th></tr></thead>
+    {% for x in job.skipped %}<tr><td>{{ x.which|capitalize }}</td><td class="text-break">{{ x.filename }}</td><td>{{ x.reason }}</td></tr>{% endfor %}
+  </table></div>
+</div></div>
+{% endif %}
+</div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var box = document.getElementById('job');
+  function show(id) { document.getElementById(id).classList.remove('d-none'); }
+  async function poll() {
+    var r;
+    try { r = await (await fetch(box.dataset.url, { cache: 'no-store' })).json(); }
+    catch (e) { setTimeout(poll, 2000); return; }
+    var stage = r.state === 'queued' && r.queue_position > 0
+      ? 'Waiting in line (' + r.queue_position + ' submission' + (r.queue_position > 1 ? 's' : '') + ' ahead)' : r.stage;
+    document.getElementById('job-stage').textContent = stage;
+    document.getElementById('job-count').textContent = r.total ? r.done + ' / ' + r.total + ' steps' : '';
+    document.getElementById('job-fill').style.width = r.percent + '%';
+    document.getElementById('job-pct').textContent = r.percent + '%';
+    if (r.state === 'done') {
+      document.getElementById('job-case').textContent = r.case_id;
+      document.getElementById('job-link').href = box.dataset.mine;
+      document.getElementById('job-note').textContent = 'Finished.';
+      if (r.skipped_count) {
+        var sk = document.getElementById('job-skipped');
+        sk.textContent = r.skipped_count + ' uploaded file(s) could not be analysed (no face found, or not a valid image); they are listed in the case.';
+        sk.classList.remove('d-none');
+      }
+      show('job-done'); return;
+    }
+    if (r.state === 'failed') {
+      document.getElementById('job-error').textContent = r.error;
+      document.getElementById('job-fill').classList.add('failed');
+      document.getElementById('job-note').textContent = 'Stopped.';
+      show('job-failed'); return;
+    }
+    setTimeout(poll, 1000);
+  }
+  poll();
+})();
+</script>
+{% endblock %}

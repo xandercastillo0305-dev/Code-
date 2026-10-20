@@ -28,8 +28,9 @@ app.py::review_case after an analyst acts.
     Line 21  end procedure
 
 Implementation notes:
-* The "for each X in {I, R}" loop (Lines 2-10) is run as one batch, which gives
-  the same result as processing the images one after the other.
+* The "for each X in {I, R}" loop (Lines 2-10) runs the model in batches of
+  config.BATCH_SIZE faces, which gives the same result as processing the
+  images one after the other but stays fast and memory-safe for hundreds.
 * A case may contain several suspect images (I_1..I_k) and several reference
   images (R_1..R_m). Lines 11-16 are evaluated for every suspect against every
   reference; each suspect keeps its best-matching reference (highest S), and
@@ -43,7 +44,7 @@ import torch.nn.functional as F
 
 import config
 from pipeline import classifier, similarity
-from pipeline.preprocessing import NO_FACE_MESSAGE, FacePreprocessor, NoFaceDetectedError
+from pipeline.preprocessing import NO_FACE_MESSAGE, FacePreprocessor, NoFaceDetectedError, to_tensor
 
 
 def verify_media(suspect_path, reference_path, tau=None, *, preprocessor=None,
@@ -61,20 +62,34 @@ def verify_media(suspect_path, reference_path, tau=None, *, preprocessor=None,
     return out
 
 
-def _preprocess_all(preprocessor, paths, label):
-    results = []
-    for n, path in enumerate(paths, start=1):
-        try:
-            results.append(preprocessor.process_path(path))
-        except NoFaceDetectedError:
-            # Line 4: no face -> stop; name the image so the investigator can fix it
-            raise NoFaceDetectedError(
-                f"{NO_FACE_MESSAGE} ({label} image {n}: {os.path.basename(path)})")
-    return results
+def _report(progress, stage, done, total):
+    if progress is not None:
+        progress(stage, done, total)
+
+
+def _embed_in_chunks(model_bundle, faces, chunk, progress, done, total):
+    """Lines 7-9 for a list of preprocessed faces, ``chunk`` faces at a time
+    so hundreds of images never have to sit in memory as one tensor."""
+    model = model_bundle.model
+    model.eval()
+    out = []
+    with torch.no_grad():
+        for start in range(0, len(faces), chunk):
+            # Line 6 tensors are rebuilt per chunk from the 380x380 crop (same values),
+            # so only `chunk` normalised tensors exist at any time
+            batch = torch.stack([to_tensor(x.face) for x in faces[start:start + chunk]]).to(model_bundle.device)
+            # Line 7: EfficientNet-B4 local features F_1          |  both branches run on the
+            # Line 8: ViT global features F_2 (resized to 384x384) |  same faces
+            f1, f2 = model.branch_features(batch)
+            # Line 9: fusion -> 512-d L2-normalised embeddings   (Line 10: end for)
+            out.append(F.normalize(model.fuse(f1, f2), p=2, dim=1).cpu().numpy())
+            done += len(faces[start:start + chunk])
+            _report(progress, "Extracting features", done, total)
+    return np.concatenate(out), done
 
 
 def verify_case(suspect_paths, reference_paths, tau=None, *, preprocessor=None,
-                model_bundle=None, weights=None):
+                model_bundle=None, weights=None, progress=None, chunk=None):
     """Run the automated analysis for a case with one or more images of each kind.
 
     Every suspect image is compared with every reference image; for each
@@ -82,6 +97,13 @@ def verify_case(suspect_paths, reference_paths, tau=None, *, preprocessor=None,
     authentic image should match at least one genuine photo of the subject.
     The case is classified Deepfake if ANY suspect image falls below tau, and
     the case-level scores are those of the most suspicious image (lowest S).
+
+    Images in which no face is found are skipped and listed in ``skipped``
+    (index into the input list + reason). If no suspect or no reference image
+    has a face, the case stops with the Line 4 message.
+
+    ``progress(stage, done, total)`` is called as the work advances, so a
+    large upload can show a progress bar.
     """
     if not suspect_paths or not reference_paths:
         raise ValueError("At least one suspect image and one reference image are required.")
@@ -89,25 +111,42 @@ def verify_case(suspect_paths, reference_paths, tau=None, *, preprocessor=None,
     tau = classifier.validate_threshold(config.THRESHOLD_TAU if tau is None else tau)
     weights = similarity.validate_weights(weights or config.METRIC_WEIGHTS)
     preprocessor = preprocessor or FacePreprocessor()
+    chunk = chunk or config.BATCH_SIZE
+    n_images = len(suspect_paths) + len(reference_paths)
+    total = 2 * n_images + len(suspect_paths)        # detect + embed every image, then compare suspects
+    done = 0
     if model_bundle is None:
+        _report(progress, "Loading the AI model", done, total)
         from pipeline.model import get_model_bundle
         model_bundle = get_model_bundle()
+    _report(progress, "Detecting faces", done, total)
 
     # Line 2: for each X in {I, R}   (here: every suspect and every reference image)
-    # Lines 3-6: MTCNN face detection, no-face stop, align/crop/resize 380x380, normalise
-    suspects = _preprocess_all(preprocessor, suspect_paths, "suspect")
-    references = _preprocess_all(preprocessor, reference_paths, "reference")
+    # Lines 3-6: MTCNN face detection, align/crop/resize 380x380, normalise
+    kept = {"suspect": [], "reference": []}           # (input index, PreprocessResult)
+    skipped = []
+    for which, paths in (("suspect", suspect_paths), ("reference", reference_paths)):
+        for i, path in enumerate(paths):
+            try:
+                result = preprocessor.process_path(path)
+                result.tensor = None                  # rebuilt per chunk in _embed_in_chunks
+                kept[which].append((i, result))
+            except NoFaceDetectedError:
+                # Line 4: no face -> this image cannot be analysed
+                skipped.append({"which": which, "index": i, "filename": os.path.basename(path),
+                                "reason": "No face detected"})
+            done += 1
+            _report(progress, "Detecting faces", done, total)
+    for which in ("suspect", "reference"):
+        if not kept[which]:
+            # Line 4: nothing left to compare -> stop
+            raise NoFaceDetectedError(f"{NO_FACE_MESSAGE} (no {which} image contained a detectable face)")
+    suspects = [x for _, x in kept["suspect"]]
+    references = [x for _, x in kept["reference"]]
+    total = 2 * n_images + len(suspects)              # skipped images are not embedded or compared
+    done += len(skipped)
 
-    batch = torch.stack([x.tensor for x in suspects + references])
-    model = model_bundle.model
-    model.eval()
-    with torch.no_grad():
-        batch = batch.to(model_bundle.device)
-        # Line 7: EfficientNet-B4 local features F_1          |  both branches run on the
-        # Line 8: ViT global features F_2 (resized to 384x384) |  same faces
-        f1, f2 = model.branch_features(batch)
-        # Line 9: fusion -> 512-d L2-normalised embeddings   (Line 10: end for)
-        fused = F.normalize(model.fuse(f1, f2), p=2, dim=1).cpu().numpy()
+    fused, done = _embed_in_chunks(model_bundle, suspects + references, chunk, progress, done, total)
     emb_s, emb_r = fused[:len(suspects)], fused[len(suspects):]
 
     per_suspect = []
@@ -131,6 +170,10 @@ def verify_case(suspect_paths, reference_paths, tau=None, *, preprocessor=None,
         best["ai_classification"] = classifier.classify(best["aggregated_score"], tau)
         best["confidence_score"] = float(classifier.confidence(best["aggregated_score"], tau))
         per_suspect.append(best)
+        done += 1
+        if i % 5 == 4 or i == len(suspects) - 1:
+            _report(progress, "Comparing with references", done, total)
+    done = total
 
     # Case level: the most suspicious suspect image (lowest S) decides.
     deciding = min(per_suspect, key=lambda r: r["aggregated_score"])
@@ -152,4 +195,7 @@ def verify_case(suspect_paths, reference_paths, tau=None, *, preprocessor=None,
         "suspect_faces": [x.face for x in suspects],
         "reference_faces": [x.face for x in references],
         "embedding_dim": int(np.asarray(emb_s[0]).shape[0]),
+        # which inputs were analysed (input indexes, in order) and which were skipped
+        "analyzed": {w: [i for i, _ in kept[w]] for w in kept},
+        "skipped": skipped,
     }

@@ -50,6 +50,15 @@ class NoFaceDetector:
         return None, [None], None
 
 
+class BlankMeansNoFaceDetector(StubDetector):
+    """Finds the stub face in normal test images, but none in a plain one-colour image."""
+
+    def __call__(self, img):
+        if np.asarray(img).std() < 2:
+            return None, [None], None
+        return super().__call__(img)
+
+
 class TinyHybrid(nn.Module):
     """Same interface as HybridCNNTransformer, but tiny and deterministic."""
 

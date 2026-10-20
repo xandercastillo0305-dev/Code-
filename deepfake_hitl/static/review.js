@@ -40,6 +40,16 @@
     });
   }
 
+  // --- large cases: show / hide the less suspicious images ---
+  document.querySelectorAll('.show-more').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var items = document.querySelectorAll('.' + btn.dataset.target);
+      var hidden = items.length && items[0].classList.contains('d-none');
+      items.forEach(function (el) { el.classList.toggle('d-none', !hidden); });
+      btn.textContent = hidden ? btn.dataset.less : btn.dataset.more;
+    });
+  });
+
   // --- copy SHA-256 ---
   document.querySelectorAll('.copy-btn').forEach(function (b) {
     b.addEventListener('click', function () {

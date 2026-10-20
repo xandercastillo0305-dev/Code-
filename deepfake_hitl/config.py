@@ -61,8 +61,10 @@ MIN_RATIONALE_LENGTH = 30             # characters; enforced on server and clien
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 ALLOWED_PIL_FORMATS = {"JPEG", "PNG"}
 MAX_UPLOAD_MB = 10                    # per image
-MAX_SUSPECT_IMAGES = 10               # per case
-MAX_REFERENCE_IMAGES = 5              # per case
+MAX_SUSPECT_IMAGES = 500              # per case (a whole folder can be uploaded)
+MAX_REFERENCE_IMAGES = 10             # per case
+MAX_TOTAL_UPLOAD_MB = 2048            # all files of one submission together
+BATCH_SIZE = 16                       # faces per model forward pass (memory-safe on CPU)
 MAX_IMAGE_PIXELS = 40_000_000         # decompression-bomb guard
 
 # Flask
