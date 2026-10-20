@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,15 +14,15 @@
     {% if current_user.is_authenticated %}
     <ul class="navbar-nav me-auto">
       {% if current_user.role == 'investigator' %}
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('submit_case') }}">Submit case</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('my_cases') }}">My cases</a></li>
+        <li class="nav-item"><a class="nav-link {{ 'active' if request.endpoint == 'submit_case' }}" href="{{ url_for('submit_case') }}">Submit case</a></li>
+        <li class="nav-item"><a class="nav-link {{ 'active' if request.endpoint == 'my_cases' }}" href="{{ url_for('my_cases') }}">My cases</a></li>
       {% else %}
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link {{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}">Dashboard</a></li>
       {% endif %}
       {% if current_user.role == 'admin' %}
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('evaluation') }}">Evaluation</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('manage_users') }}">Users</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('audit_view') }}">Audit log</a></li>
+        <li class="nav-item"><a class="nav-link {{ 'active' if request.endpoint == 'evaluation' }}" href="{{ url_for('evaluation') }}">Evaluation</a></li>
+        <li class="nav-item"><a class="nav-link {{ 'active' if request.endpoint == 'manage_users' }}" href="{{ url_for('manage_users') }}">Users</a></li>
+        <li class="nav-item"><a class="nav-link {{ 'active' if request.endpoint == 'audit_view' }}" href="{{ url_for('audit_view') }}">Audit log</a></li>
       {% endif %}
     </ul>
     <span class="navbar-text me-3 small">{{ current_user.name }} · <b>{{ current_user.id }}</b> · {{ current_user.role|capitalize }}</span>
