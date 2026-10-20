@@ -44,6 +44,21 @@ def build_report_data(case, users=None):
         u = users.get(uid) if uid else None
         return f"{u['name']} ({uid})" if u else (uid or "—")
 
+    suspects, references = storage.case_images(case, "suspect"), storage.case_images(case, "reference")
+    multi = len(suspects) > 1 or len(references) > 1
+    images = []
+    for which, items in (("suspect", suspects), ("reference", references)):
+        for item in items:
+            label = f"{which.capitalize()} image" + (f" #{item['n']}" if multi else "")
+            images.append({"which": which, "n": item["n"], "label": label,
+                           "sha256": item.get("sha256") or "—"})
+    per_image = []
+    for item in suspects:
+        r = storage.suspect_result(case, item["n"])
+        per_image.append({"n": item["n"], "ai": r["ai_classification"], "s": _pct(r["aggregated_score"]),
+                          "ref": r.get("best_reference", 1), "conf": _pct(r["confidence_score"])})
+    deciding = storage.suspect_result(case, case.get("deciding_suspect") or 1)
+
     return {
         "case_id": case["case_id"],
         "untrained": not case.get("model_trained", False),
@@ -55,12 +70,17 @@ def build_report_data(case, users=None):
             ("Submitted By (Investigator)", name(case["submitted_by"])),
             ("Reviewed By (Analyst)", name(case.get("reviewer_id"))),
         ],
-        "images": [
-            ("Suspect image", case.get("suspect_sha256") or "—"),
-            ("Reference image", case.get("reference_sha256") or "—"),
-        ],
+        "images": images,
+        "multi": multi,
+        "per_image": per_image,
         "ai_analysis": [
             ("Preliminary classification", case["ai_classification"]),
+        ] + ([
+            ("Images analysed", f"{len(suspects)} suspect · {len(references)} reference"),
+            ("Scores below are for", f"Suspect #{deciding['n']} (most suspicious, lowest S) "
+                                     f"vs. Reference #{deciding['best_reference']}"),
+        ] if multi else []) + [
+
             ("Confidence score", _pct(case["confidence_score"])),
             ("Cosine similarity", _pct(case["cosine_similarity"])),
             ("Euclidean similarity", _pct(case["euclidean_similarity"])),
@@ -83,8 +103,8 @@ def build_report_data(case, users=None):
     }
 
 
-def _blurred_face(case_id, which, upload_dir):
-    p = storage.face_path(case_id, which, upload_dir)
+def _blurred_face(case_id, which, upload_dir, n=1):
+    p = storage.face_path(case_id, which, upload_dir, n)
     if not os.path.exists(p):
         return None
     with Image.open(p) as im:
@@ -139,15 +159,18 @@ def generate_pdf(case, out_path, users=None, upload_dir=None):
     story += [Paragraph("I. Case Information", h2), _kv_table(data["case_information"], width)]
 
     story.append(Paragraph("II. Submitted Images (redacted: blurred face crops only)", h2))
-    thumbs = []
-    for which, (lbl, digest) in zip(storage.ROLES_IMAGES, data["images"]):
-        face = _blurred_face(case["case_id"], which, upload_dir)
-        cell = [Paragraph(f"<b>{lbl}</b>", small)]
+    cells = []
+    for img in data["images"]:
+        face = _blurred_face(case["case_id"], img["which"], upload_dir, img["n"])
+        cell = [Paragraph(f"<b>{img['label']}</b>", small)]
         if face is not None:
-            cell.append(RLImage(io.BytesIO(storage.image_png_bytes(face, 300)), 32 * mm, 32 * mm))
-        cell.append(Paragraph(f"SHA-256:<br/><font face='Courier' size='7'>{digest}</font>", small))
-        thumbs.append(cell)
-    t = Table([thumbs], colWidths=[width / 2] * 2)
+            cell.append(RLImage(io.BytesIO(storage.image_png_bytes(face, 300)), 28 * mm, 28 * mm))
+        cell.append(Paragraph(f"SHA-256:<br/><font face='Courier' size='6'>{img['sha256']}</font>", small))
+        cells.append(cell)
+    per_row = 2 if len(cells) <= 2 else 3
+    rows = [cells[i:i + per_row] for i in range(0, len(cells), per_row)]
+    rows[-1] += [""] * (per_row - len(rows[-1]))
+    t = Table(rows, colWidths=[width / per_row] * per_row)
     t.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
                            ("BOX", (0, 0), (-1, -1), 0.5, colors.grey),
                            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.grey)]))
@@ -157,6 +180,17 @@ def generate_pdf(case, out_path, users=None, upload_dir=None):
     story.append(_kv_table(data["ai_analysis"], width,
                            header="AUTOMATED — AI-assisted preliminary analysis (not a verdict)",
                            header_color=AUTOMATED_COLOR, label_bg="#e8f0f8"))
+    if data["multi"]:
+        cell = ParagraphStyle("pi", fontName="Helvetica", fontSize=8, leading=10)
+        head = ParagraphStyle("pih", parent=cell, fontName="Helvetica-Bold")
+        rows = [[Paragraph(h, head) for h in ("Suspect image", "AI result", "Score S", "Best reference",
+                                               "Confidence")]]
+        rows += [[Paragraph(f"#{r['n']}", cell), Paragraph(r["ai"], cell), Paragraph(r["s"], cell),
+                  Paragraph(f"#{r['ref']}", cell), Paragraph(r["conf"], cell)] for r in data["per_image"]]
+        pt = Table(rows, colWidths=[width / 5] * 5)
+        pt.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#999999")),
+                                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e8f0f8"))]))
+        story += [Spacer(1, 4), Paragraph("<b>Per-image results (automated)</b>", small), pt]
     story.append(Paragraph(data["disclaimer"], small))
 
     story.append(Paragraph("IV. Human Review", h2))

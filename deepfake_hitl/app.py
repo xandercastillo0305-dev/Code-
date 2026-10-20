@@ -16,6 +16,7 @@ from flask import (Flask, Response, abort, flash, redirect, render_template, req
                    send_file, session, url_for)
 from flask_login import LoginManager, current_user, login_required, login_user, logout_user
 from PIL import Image
+from werkzeug.utils import secure_filename
 
 import config
 import storage
@@ -39,9 +40,9 @@ ATTESTATION_TEXT = ("I attest that the subject is an adult (18+) and that I am a
                     "to submit this material.")
 
 
-def default_verify(suspect_path, reference_path, tau):
-    from pipeline.verify import verify_media
-    return verify_media(suspect_path, reference_path, tau)
+def default_verify(suspect_paths, reference_paths, tau):
+    from pipeline.verify import verify_case
+    return verify_case(suspect_paths, reference_paths, tau)
 
 
 def create_app(overrides=None):
@@ -57,7 +58,8 @@ def create_app(overrides=None):
         HYBRID_WEIGHTS_PATH=config.HYBRID_WEIGHTS_PATH,
         THRESHOLD_TAU=config.THRESHOLD_TAU,
         MIN_RATIONALE_LENGTH=config.MIN_RATIONALE_LENGTH,
-        MAX_CONTENT_LENGTH=(2 * config.MAX_UPLOAD_MB + 1) * 1024 * 1024,
+        MAX_CONTENT_LENGTH=((config.MAX_SUSPECT_IMAGES + config.MAX_REFERENCE_IMAGES) * config.MAX_UPLOAD_MB + 1)
+                           * 1024 * 1024,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         CSRF_ENABLED=True,
@@ -112,6 +114,10 @@ def create_app(overrides=None):
             "min_rationale": app.config["MIN_RATIONALE_LENGTH"],
             "tau": app.config["THRESHOLD_TAU"],
             "max_upload_mb": config.MAX_UPLOAD_MB,
+            "max_suspect_images": config.MAX_SUSPECT_IMAGES,
+            "max_reference_images": config.MAX_REFERENCE_IMAGES,
+            "case_images": storage.case_images,
+            "suspect_result": storage.suspect_result,
             "metric_weights": config.METRIC_WEIGHTS,
         }
 
@@ -183,30 +189,41 @@ def create_app(overrides=None):
             flash("You must confirm the adult-subject and authorization attestation.", "danger")
             return render_template("submit.html", attestation=ATTESTATION_TEXT), 400
 
+        limits = {"suspect": config.MAX_SUSPECT_IMAGES, "reference": config.MAX_REFERENCE_IMAGES}
         files = {}
         try:
             for which in storage.ROLES_IMAGES:
-                f = request.files.get(which)
-                if f is None or not f.filename:
-                    raise storage.UploadError(f"The {which} image is required.")
-                data = f.read()
-                files[which] = (storage.validate_image_bytes(f.filename, data), data)
+                chosen = [f for f in request.files.getlist(which) if f and f.filename]
+                if not chosen:
+                    raise storage.UploadError(f"At least one {which} image is required.")
+                if len(chosen) > limits[which]:
+                    raise storage.UploadError(
+                        f"Too many {which} images: {len(chosen)} (maximum {limits[which]} per case).")
+                files[which] = []
+                for f in chosen:
+                    data = f.read()
+                    files[which].append((storage.validate_image_bytes(f.filename, data), data,
+                                         secure_filename(f.filename) or "image"))
         except storage.UploadError as exc:
             flash(str(exc), "danger")
             return render_template("submit.html", attestation=ATTESTATION_TEXT), 400
 
         incoming = os.path.join(app.config["UPLOAD_DIR"], "_incoming", uuid.uuid4().hex)
         os.makedirs(incoming)
-        paths, hashes = {}, {}
-        for which, (ext, data) in files.items():
-            paths[which] = os.path.join(incoming, which + ext)
-            with open(paths[which], "wb") as out:
-                out.write(data)
-            hashes[which] = storage.sha256_bytes(data)       # chain of custody
+        saved = {"suspect": [], "reference": []}           # (filename on disk, original name, sha256)
+        for which, items in files.items():
+            for n, (ext, data, original) in enumerate(items, start=1):
+                name = f"{which}_{n}{ext}"
+                with open(os.path.join(incoming, name), "wb") as out:
+                    out.write(data)
+                saved[which].append((name, original, storage.sha256_bytes(data)))   # chain of custody
+        hashes = {w: [h for _, _, h in saved[w]] for w in saved}
 
         try:
-            result = app.config["VERIFY_FN"](paths["suspect"], paths["reference"],
-                                             app.config["THRESHOLD_TAU"])
+            result = app.config["VERIFY_FN"](
+                [os.path.join(incoming, name) for name, _, _ in saved["suspect"]],
+                [os.path.join(incoming, name) for name, _, _ in saved["reference"]],
+                app.config["THRESHOLD_TAU"])
         except NoFaceDetectedError as exc:
             storage.secure_delete_tree(incoming)
             audit("case_rejected", reason=str(exc), suspect_sha256=hashes["suspect"],
@@ -218,16 +235,20 @@ def create_app(overrides=None):
         final_dir = storage.case_dir(case_id, app.config["UPLOAD_DIR"])
         shutil.move(incoming, final_dir)
         for which in storage.ROLES_IMAGES:
-            result[f"{which}_face"].save(storage.face_path(case_id, which, app.config["UPLOAD_DIR"]))
+            for n, face in enumerate(result[f"{which}_faces"], start=1):
+                face.save(storage.face_path(case_id, which, app.config["UPLOAD_DIR"], n))
 
-        rel = lambda which: os.path.relpath(  # noqa: E731
-            os.path.join(final_dir, os.path.basename(paths[which])), app.config["DATA_DIR"])
+        def listing(which):
+            return [{"n": n, "path": os.path.relpath(os.path.join(final_dir, name), app.config["DATA_DIR"]),
+                     "filename": original, "sha256": digest}
+                    for n, (name, original, digest) in enumerate(saved[which], start=1)]
+        suspect_list, reference_list = listing("suspect"), listing("reference")
         record = {
             "case_id": case_id,
             "submitted_by": current_user.id,
             "submitted_at": now_iso(),
-            "suspect_image": rel("suspect"),
-            "reference_image": rel("reference"),
+            "suspect_image": suspect_list[0]["path"],
+            "reference_image": reference_list[0]["path"],
             "status": workflow.PENDING,
             "ai_classification": result["ai_classification"],
             "confidence_score": result["confidence_score"],
@@ -242,15 +263,21 @@ def create_app(overrides=None):
             "rationale": None,
             "reviewed_at": None,
             "report_path": None,
-            "suspect_sha256": hashes["suspect"],
-            "reference_sha256": hashes["reference"],
+            "suspect_sha256": suspect_list[0]["sha256"],
+            "reference_sha256": reference_list[0]["sha256"],
             "model_version": result["model_version"],
             "model_trained": result["model_trained"],
+            "suspect_images": suspect_list,
+            "reference_images": reference_list,
+            "suspect_results": result["suspect_results"],
+            "deciding_suspect": result["deciding_suspect"],
         }
         cases.add_case(record)          # Algorithm Line 17: add case to the queue as "pending"
         audit("case_submitted", case_id, suspect_sha256=hashes["suspect"],
               reference_sha256=hashes["reference"], attestation=True)
-        flash(f"{case_id} submitted and queued for analyst review.", "success")
+        n_s, n_r = len(suspect_list), len(reference_list)
+        flash(f"{case_id} submitted with {n_s} suspect and {n_r} reference "
+              f"image{'s' if n_s + n_r > 2 else ''}, and queued for analyst review.", "success")
         return redirect(url_for("my_cases"))
 
     @app.route("/cases/mine")
@@ -304,8 +331,18 @@ def create_app(overrides=None):
         resp.headers["Cache-Control"] = "no-store"
         return resp
 
-    def _original_path(case, which):
-        return os.path.join(app.config["DATA_DIR"], case[f"{which}_image"])
+    def _image_number(case, which):
+        """The ?n= image index for this request, validated against the case."""
+        try:
+            n = int(request.args.get("n", 1))
+        except ValueError:
+            abort(404)
+        if not 1 <= n <= len(storage.case_images(case, which)):
+            abort(404)
+        return n
+
+    def _original_path(case, which, n):
+        return os.path.join(app.config["DATA_DIR"], storage.case_images(case, which)[n - 1]["path"])
 
     @app.route("/cases/<case_id>/image/<which>/<variant>")
     @login_required
@@ -313,16 +350,17 @@ def create_app(overrides=None):
         case = load_case(case_id)
         if which not in storage.ROLES_IMAGES or not can_view_case(case):
             abort(404 if which not in storage.ROLES_IMAGES else 403)
+        n = _image_number(case, which)
         if variant == "face_blur":                                  # everyone allowed on the case
-            with Image.open(storage.face_path(case_id, which, app.config["UPLOAD_DIR"])) as im:
+            with Image.open(storage.face_path(case_id, which, app.config["UPLOAD_DIR"], n)) as im:
                 return _image_response(storage.redact(im, "blur"), 300)
         if current_user.role != ANALYST:
             abort(403)
         if variant == "face":                                       # analyst: aligned face crop
-            with Image.open(storage.face_path(case_id, which, app.config["UPLOAD_DIR"])) as im:
+            with Image.open(storage.face_path(case_id, which, app.config["UPLOAD_DIR"], n)) as im:
                 return _image_response(im.convert("RGB"))
         if variant == "full_pixelated":                             # analyst: redacted full image
-            with Image.open(_original_path(case, which)) as im:
+            with Image.open(_original_path(case, which, n)) as im:
                 return _image_response(storage.redact(im, "pixelate"), 640)
         abort(404)
 
@@ -333,8 +371,9 @@ def create_app(overrides=None):
         case = load_case(case_id)
         if which not in storage.ROLES_IMAGES:
             abort(404)
-        audit("image_revealed", case_id, which=which)
-        with Image.open(_original_path(case, which)) as im:
+        n = _image_number(case, which)
+        audit("image_revealed", case_id, which=which, image=n)
+        with Image.open(_original_path(case, which, n)) as im:
             return _image_response(im.convert("RGB"), 1600)
 
     # ---- Forensic report ---------------------------------------------------------------

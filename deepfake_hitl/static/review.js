@@ -10,8 +10,9 @@
       var resp = await fetch(btn.dataset.url, { method: 'POST', headers: { 'X-CSRF-Token': window.CSRF_TOKEN } });
       if (!resp.ok) { alert('Reveal failed (' + resp.status + ').'); btn.disabled = false; return; }
       var url = URL.createObjectURL(await resp.blob());
-      document.getElementById('full-' + which).src = url;
-      var tag = document.getElementById('tag-' + which);
+      var target = btn.dataset.target || which;
+      document.getElementById('full-' + target).src = url;
+      var tag = document.getElementById('tag-' + target);
       tag.textContent = 'REVEALED · logged';
       tag.classList.add('revealed');
       btn.textContent = 'Revealed (logged)';
@@ -26,6 +27,16 @@
     range.addEventListener('input', function () {
       top.style.opacity = range.value / 100;
       out.textContent = range.value + '%';
+    });
+  }
+
+  // --- choose which suspect/reference pair to overlay (multi-image cases) ---
+  var pair = document.getElementById('overlay-pair');
+  if (pair) {
+    pair.addEventListener('change', function () {
+      var opt = pair.options[pair.selectedIndex];
+      document.getElementById('overlay-suspect').src = opt.dataset.s;
+      document.getElementById('overlay-reference').src = opt.dataset.r;
     });
   }
 

@@ -48,29 +48,80 @@
         <span class="small text-muted">Aligned face crops · 380×380</span>
       </div>
       <div class="card-body">
-        <div class="row g-3">
-          {% for which, label in [('suspect', 'Suspect'), ('reference', 'Reference')] %}
+        {% set suspects = case_images(case, 'suspect') %}
+        {% set references = case_images(case, 'reference') %}
+        {% set multi = suspects|length > 1 or references|length > 1 %}
+        {% set deciding = suspect_result(case, case.deciding_suspect or 1) %}
+
+        <!-- Suspect face crops, each with its own AI result -->
+        <div class="d-flex justify-content-between align-items-baseline mb-2">
+          <span class="fw-semibold">Suspect image{{ 's' if suspects|length > 1 }} ({{ suspects|length }})</span>
+          {% if suspects|length > 1 %}<span class="small text-muted">Red outline = most suspicious (decides the case)</span>{% endif %}
+        </div>
+        <div class="row g-3 mb-3">
+          {% for img in suspects %}{% set r = suspect_result(case, img.n) %}
+          <div class="{{ 'col-6' if suspects|length == 1 else 'col-6 col-md-4' }}">
+            <figure class="face-figure mb-0 {{ 'deciding' if multi and img.n == deciding.n }}">
+              <span class="face-label face-label-suspect">Suspect{{ ' #' ~ img.n if multi }}</span>
+              <img class="evidence-face" alt="Suspect {{ img.n }} face crop"
+                   src="{{ url_for('case_image', case_id=case.case_id, which='suspect', variant='face', n=img.n) }}">
+            </figure>
+            {% if multi %}
+            <div class="d-flex justify-content-between align-items-center small mt-1">
+              <span>{{ label_badge(r.ai_classification) }}</span>
+              <span class="font-monospace" title="Best match: reference #{{ r.best_reference }}">S {{ '%.3f'|format(r.aggregated_score) }} · R#{{ r.best_reference }}</span>
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+          {% if suspects|length == 1 and references|length == 1 %}
           <div class="col-6">
             <figure class="face-figure mb-0">
-              <span class="face-label face-label-{{ which }}">{{ label }}</span>
-              <img class="evidence-face" alt="{{ label }} face crop"
-                   src="{{ url_for('case_image', case_id=case.case_id, which=which, variant='face') }}">
+              <span class="face-label face-label-reference">Reference</span>
+              <img class="evidence-face" alt="Reference face crop"
+                   src="{{ url_for('case_image', case_id=case.case_id, which='reference', variant='face', n=1) }}">
+            </figure>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if multi %}
+        <div class="fw-semibold mb-2">Reference image{{ 's' if references|length > 1 }} ({{ references|length }})</div>
+        <div class="row g-3 mb-1">
+          {% for img in references %}
+          <div class="col-4 col-md-3">
+            <figure class="face-figure mb-0">
+              <span class="face-label face-label-reference">Ref #{{ img.n }}</span>
+              <img class="evidence-face" alt="Reference {{ img.n }} face crop"
+                   src="{{ url_for('case_image', case_id=case.case_id, which='reference', variant='face', n=img.n) }}">
             </figure>
           </div>
           {% endfor %}
         </div>
+        {% endif %}
 
-        <!-- Overlay comparison: fade the suspect face over the reference face -->
+        <!-- Overlay comparison: fade a suspect face over its best-matching reference face -->
         <div class="compare-box mt-4">
-          <div class="d-flex justify-content-between align-items-baseline mb-2">
+          <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-2">
             <span class="fw-semibold">Overlay comparison</span>
+            {% if multi %}
+            <select class="form-select form-select-sm w-auto" id="overlay-pair" aria-label="Choose suspect image to compare">
+              {% for img in suspects %}{% set r = suspect_result(case, img.n) %}
+              <option value="{{ img.n }}" {{ 'selected' if img.n == deciding.n }}
+                      data-s="{{ url_for('case_image', case_id=case.case_id, which='suspect', variant='face', n=img.n) }}"
+                      data-r="{{ url_for('case_image', case_id=case.case_id, which='reference', variant='face', n=r.best_reference) }}">
+                Suspect #{{ img.n }} vs. Reference #{{ r.best_reference }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
             <span class="small text-muted">Drag to fade between the two aligned faces</span>
+            {% endif %}
           </div>
           <div class="row g-3 align-items-center">
             <div class="col-sm-5">
               <div class="overlay-stage">
-                <img alt="Reference face" src="{{ url_for('case_image', case_id=case.case_id, which='reference', variant='face') }}">
-                <img id="overlay-suspect" alt="Suspect face" src="{{ url_for('case_image', case_id=case.case_id, which='suspect', variant='face') }}" style="opacity:.5">
+                <img id="overlay-reference" alt="Reference face" src="{{ url_for('case_image', case_id=case.case_id, which='reference', variant='face', n=deciding.best_reference) }}">
+                <img id="overlay-suspect" alt="Suspect face" src="{{ url_for('case_image', case_id=case.case_id, which='suspect', variant='face', n=deciding.n) }}" style="opacity:.5">
               </div>
             </div>
             <div class="col-sm-7">
@@ -88,22 +139,25 @@
             <span class="small text-muted">Pixelated by default · every reveal is logged</span>
           </div>
           <div class="row g-3">
-            {% for which, label in [('suspect', 'Suspect'), ('reference', 'Reference')] %}
-            <div class="col-6">
+            {% for which, items in [('suspect', suspects), ('reference', references)] %}{% for img in items %}
+            {% set tag = which ~ '-' ~ img.n %}
+            <div class="{{ 'col-6' if not multi else 'col-6 col-md-4' }}">
+              <div class="small fw-semibold mb-1">{{ which|capitalize }}{{ ' #' ~ img.n if multi }}</div>
               <div class="full-tile">
-                <img class="evidence-full" id="full-{{ which }}" alt="{{ label }} full image (redacted)"
-                     src="{{ url_for('case_image', case_id=case.case_id, which=which, variant='full_pixelated') }}">
-                <span class="redacted-tag" id="tag-{{ which }}">REDACTED</span>
+                <img class="evidence-full" id="full-{{ tag }}" alt="{{ which }} {{ img.n }} full image (redacted)"
+                     src="{{ url_for('case_image', case_id=case.case_id, which=which, variant='full_pixelated', n=img.n) }}">
+                <span class="redacted-tag" id="tag-{{ tag }}">REDACTED</span>
               </div>
-              <button type="button" class="btn btn-sm btn-outline-danger mt-2 w-100 reveal-btn" data-which="{{ which }}"
-                      data-url="{{ url_for('reveal_image', case_id=case.case_id, which=which) }}">Reveal full {{ which }} image (logged)</button>
+              <button type="button" class="btn btn-sm btn-outline-danger mt-2 w-100 reveal-btn" data-which="{{ which }}{{ ' #' ~ img.n if multi }}"
+                      data-target="{{ tag }}"
+                      data-url="{{ url_for('reveal_image', case_id=case.case_id, which=which, n=img.n) }}">Reveal full image (logged)</button>
               <div class="hash-row mt-2">
                 <span class="small text-muted">SHA-256</span>
-                <code class="hash" title="{{ case[which ~ '_sha256'] }}">{{ case[which ~ '_sha256'][:16] }}…{{ case[which ~ '_sha256'][-8:] }}</code>
-                <button type="button" class="btn btn-link btn-sm p-0 copy-btn" data-copy="{{ case[which ~ '_sha256'] }}">Copy</button>
+                <code class="hash" title="{{ img.sha256 }}">{{ (img.sha256 or '')[:12] }}…{{ (img.sha256 or '')[-6:] }}</code>
+                <button type="button" class="btn btn-link btn-sm p-0 copy-btn" data-copy="{{ img.sha256 }}">Copy</button>
               </div>
             </div>
-            {% endfor %}
+            {% endfor %}{% endfor %}
           </div>
         </div>
       </div>
@@ -150,6 +204,12 @@
           </div>
           {% endfor %}
 
+          {% if multi %}
+          <div class="alert alert-light border small py-2 mb-3">
+            Case result is based on the <b>most suspicious image</b>: Suspect #{{ deciding.n }} vs. Reference #{{ deciding.best_reference }}.
+            The case is Deepfake if <b>any</b> suspect image scores below τ.
+          </div>
+          {% endif %}
           <!-- S vs tau gauge with labelled zones -->
           <div class="mt-3">
             <div class="d-flex justify-content-between small mb-1">
@@ -167,6 +227,17 @@
               <span class="zone-key zone-key-real">Real zone (S ≥ τ) · 1</span>
             </div>
             <p class="small text-muted mt-2 mb-0">S = {{ '%.2f'|format(metric_weights.cosine) }}·cosine + {{ '%.2f'|format(metric_weights.euclidean) }}·euclidean + {{ '%.2f'|format(metric_weights.ssim) }}·SSIM. Real if S ≥ τ, otherwise Deepfake.</p>
+            {% if multi %}
+            <div class="small fw-semibold mt-3 mb-1">Per-image results</div>
+            <table class="table table-sm table-bordered small mb-0">
+              <thead class="table-light"><tr><th>Suspect</th><th>AI result</th><th>S</th><th>Best ref.</th><th>Conf.</th></tr></thead>
+              {% for img in suspects %}{% set r = suspect_result(case, img.n) %}
+              <tr class="{{ 'table-danger' if img.n == deciding.n }}"><td>#{{ img.n }}</td><td>{{ label_badge(r.ai_classification) }}</td>
+                <td class="font-monospace">{{ '%.3f'|format(r.aggregated_score) }}</td><td>#{{ r.best_reference }}</td>
+                <td class="font-monospace">{{ '%.0f'|format(r.confidence_score*100) }}%</td></tr>
+              {% endfor %}
+            </table>
+            {% endif %}
           </div>
         </div>
       </div>

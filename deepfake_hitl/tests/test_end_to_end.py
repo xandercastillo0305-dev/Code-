@@ -12,7 +12,7 @@ import pytest
 
 from app import create_app
 from pipeline.preprocessing import FacePreprocessor
-from pipeline.verify import verify_media
+from pipeline.verify import verify_case, verify_media
 from review.case_store import CASE_FIELDS, EXTRA_FIELDS
 from storage import sha256_file
 from tests.conftest import NoFaceDetector, StubDetector, TinyHybrid, make_face_image
@@ -32,7 +32,7 @@ def make_app(tmp_path, detector=None):
         "CASES_PATH": str(data / "cases.json"), "USERS_PATH": str(data / "users.json"),
         "AUDIT_LOG_PATH": str(data / "audit_log.jsonl"),
         "HYBRID_WEIGHTS_PATH": str(tmp_path / "none.pt"),
-        "VERIFY_FN": lambda s, r, tau: verify_media(s, r, tau, preprocessor=pre, model_bundle=bundle),
+        "VERIFY_FN": lambda s, r, tau: verify_case(s, r, tau, preprocessor=pre, model_bundle=bundle),
     })
     us = app.extensions["user_store"]
     us.create("INV-01", "Investigator", "investigator", PASSWORD)
@@ -162,3 +162,53 @@ def test_confirm_and_flag_via_web(app, tmp_path, decision, status, final):
     case = app.extensions["case_store"].get("CASE-0001")
     assert case["status"] == status
     assert case["final_classification"] == (final or case["ai_classification"])
+
+
+def test_multi_image_case(app, tmp_path):
+    c = login(app.test_client(), "INV-01")
+    sus = [make_face_image(tmp_path / f"s{i}.png", seed=10 + i, variant=i) for i in range(3)]
+    refs = [make_face_image(tmp_path / f"r{i}.png", seed=20 + i) for i in range(2)]
+    data = {"suspect": [(open(p, "rb"), f"s{i}.png") for i, p in enumerate(sus)],
+            "reference": [(open(p, "rb"), f"r{i}.png") for i, p in enumerate(refs)], "attest": "yes"}
+    assert c.post("/cases/new", data=data, content_type="multipart/form-data").status_code == 302
+
+    case = app.extensions["case_store"].get("CASE-0001")
+    assert [i["n"] for i in case["suspect_images"]] == [1, 2, 3]
+    assert [i["sha256"] for i in case["suspect_images"]] == [sha256_file(p) for p in sus]
+    assert [i["sha256"] for i in case["reference_images"]] == [sha256_file(p) for p in refs]
+    results = case["suspect_results"]
+    assert len(results) == 3 and all(r["best_reference"] in (1, 2) for r in results)
+    # the case-level result comes from the most suspicious (lowest-S) suspect image
+    worst = min(results, key=lambda r: r["aggregated_score"])
+    assert case["deciding_suspect"] == worst["n"]
+    assert case["aggregated_score"] == pytest.approx(worst["aggregated_score"])
+    expected = "Deepfake" if any(r["ai_classification"] == "Deepfake" for r in results) else "Real"
+    assert case["ai_classification"] == expected
+
+    a = login(app.test_client(), "ANA-01")
+    page = a.get("/cases/CASE-0001/review").get_data(as_text=True)
+    assert "Suspect #3" in page and "Ref #2" in page and "Per-image results" in page
+    assert a.get("/cases/CASE-0001/image/suspect/face?n=3").status_code == 200
+    assert a.get("/cases/CASE-0001/image/suspect/face?n=4").status_code == 404
+    assert a.post("/cases/CASE-0001/reveal/reference?n=2").status_code == 200
+    log = [json.loads(l) for l in open(app.config["AUDIT_LOG_PATH"])]
+    assert any(e["event"] == "image_revealed" and e["details"] == {"which": "reference", "image": 2} for e in log)
+
+    r = a.post("/cases/CASE-0001/review", data={"decision": "Confirm", "rationale": RATIONALE})
+    assert r.status_code == 302
+    report = a.get("/cases/CASE-0001/report").get_data(as_text=True)
+    assert "Suspect image #3" in report
+    pdf = a.get("/cases/CASE-0001/report.pdf")
+    assert pdf.status_code == 200 and pdf.data[:4] == b"%PDF"
+
+
+def test_too_many_suspect_images_rejected(app, tmp_path):
+    import config
+    c = login(app.test_client(), "INV-01")
+    p = make_face_image(tmp_path / "s.png", seed=1)
+    r = make_face_image(tmp_path / "r.png", seed=2)
+    data = {"suspect": [(open(p, "rb"), f"s{i}.png") for i in range(config.MAX_SUSPECT_IMAGES + 1)],
+            "reference": (open(r, "rb"), "r.png"), "attest": "yes"}
+    resp = c.post("/cases/new", data=data, content_type="multipart/form-data")
+    assert resp.status_code in (200, 400)
+    assert app.extensions["case_store"].list() == []

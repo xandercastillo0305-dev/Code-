@@ -12,12 +12,12 @@
 
   <h2 class="h5">II. Submitted Images <span class="small text-muted">(redacted: blurred face crops only)</span></h2>
   <div class="row g-3 mb-3">
-    {% for which in ['suspect', 'reference'] %}{% set lbl, digest = report.images[loop.index0] %}
-    <div class="col-md-6"><div class="border rounded p-2 h-100">
-      <div class="small fw-semibold">{{ lbl }}</div>
-      <img class="report-thumb rounded" alt="{{ lbl }} (blurred face crop)"
-           src="{{ url_for('case_image', case_id=case.case_id, which=which, variant='face_blur') }}">
-      <div class="sha small mt-1">SHA-256: {{ digest }}</div>
+    {% for img in report.images %}
+    <div class="{{ 'col-md-6' if not report.multi else 'col-md-4 col-6' }}"><div class="border rounded p-2 h-100">
+      <div class="small fw-semibold">{{ img.label }}</div>
+      <img class="report-thumb rounded" alt="{{ img.label }} (blurred face crop)"
+           src="{{ url_for('case_image', case_id=case.case_id, which=img.which, variant='face_blur', n=img.n) }}">
+      <div class="sha small mt-1">SHA-256: {{ img.sha256 }}</div>
     </div></div>
     {% endfor %}
   </div>
@@ -25,6 +25,15 @@
   <div class="card section-automated mb-3">
     <div class="card-header"><span class="badge bg-light text-dark me-2">AUTOMATED</span>III. AI Analysis — preliminary, not a verdict</div>
     <table class="table table-sm mb-0 kv">{% for k, v in report.ai_analysis %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endfor %}</table>
+    {% if report.multi %}
+    <div class="p-2">
+      <div class="small fw-semibold mb-1">Per-image results (automated)</div>
+      <table class="table table-sm table-bordered mb-0 small">
+        <thead class="table-light"><tr><th>Suspect image</th><th>AI result</th><th>Score S</th><th>Best reference</th><th>Confidence</th></tr></thead>
+        {% for r in report.per_image %}<tr><td>#{{ r.n }}</td><td>{{ label_badge(r.ai) }}</td><td class="font-monospace">{{ r.s }}</td><td>#{{ r.ref }}</td><td class="font-monospace">{{ r.conf }}</td></tr>{% endfor %}
+      </table>
+    </div>
+    {% endif %}
     <div class="card-footer small text-muted">{{ report.disclaimer }}</div>
   </div>
 

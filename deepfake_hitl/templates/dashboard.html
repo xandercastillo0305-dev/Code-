@@ -44,7 +44,7 @@ document.querySelectorAll('.delete-form').forEach(function (f) {
   <tbody>
   {% for c in cases|reverse %}
   <tr>
-    <td class="font-monospace">{{ c.case_id }}</td>
+    <td class="font-monospace">{{ c.case_id }}<div class="small text-muted">{{ case_images(c, 'suspect')|length }} suspect · {{ case_images(c, 'reference')|length }} ref.</div></td>
     <td class="small">{{ c.submitted_at }}<div class="text-muted">by {{ c.submitted_by }}</div></td>
     <td>{{ status_badge(c.status) }}</td>
     <td>{{ label_badge(c.ai_classification) }} <span class="small text-muted">prelim.</span></td>

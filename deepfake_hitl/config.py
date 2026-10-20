@@ -61,6 +61,8 @@ MIN_RATIONALE_LENGTH = 30             # characters; enforced on server and clien
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 ALLOWED_PIL_FORMATS = {"JPEG", "PNG"}
 MAX_UPLOAD_MB = 10                    # per image
+MAX_SUSPECT_IMAGES = 10               # per case
+MAX_REFERENCE_IMAGES = 5              # per case
 MAX_IMAGE_PIXELS = 40_000_000         # decompression-bomb guard
 
 # Flask

@@ -31,7 +31,9 @@ CASE_FIELDS = (
     "rationale", "reviewed_at", "report_path",
 )
 # Permitted additional fields (chain of custody + model provenance).
-EXTRA_FIELDS = ("suspect_sha256", "reference_sha256", "model_version", "model_trained")
+EXTRA_FIELDS = ("suspect_sha256", "reference_sha256", "model_version", "model_trained",
+                # multi-image cases: every file with its hash, and the per-suspect AI results
+                "suspect_images", "reference_images", "suspect_results", "deciding_suspect")
 ALL_FIELDS = CASE_FIELDS + EXTRA_FIELDS
 
 

@@ -72,15 +72,20 @@ python demo/make_demo_samples.py     # writes demo/samples/*.png (see demo/READM
 
 ## 3. Using the system
 
-1. **Investigator** → *Submit case*: upload the suspect and reference images (JPG/PNG, ≤10 MB),
-   tick the adults-only / authorization attestation, and submit. The SHA-256 of each file is
-   recorded, the pipeline runs, and the case enters the queue as `pending`.
+1. **Investigator** → *Submit case*: upload **one or more** suspect images (up to 10) and **one or
+   more** reference images (up to 5) of the same subject (JPG/PNG, ≤10 MB each). Pick several at once
+   or click *Choose file* again to add more; *Remove* drops one. Tick the adults-only / authorization
+   attestation and submit. The SHA-256 of every file is recorded, the pipeline runs, and the case
+   enters the queue as `pending`.
    If no face is found, the message is *"No face detected. Case cannot be analyzed."* and no case is created.
 2. **Analyst** → *Dashboard*: shows pending/verified/flagged counts and the live AI–human agreement rate.
    You can filter by status. Open a pending case with *Review*.
 3. **Review page**: aligned face crops are shown. Full images are pixelated until you click
    *Reveal full image*, and every reveal is logged. The page also shows the preliminary label,
    confidence, cosine / Euclidean / SSIM bars, and a gauge of S against τ.
+   For a multi-image case, every suspect face is shown with its own label and S; the most suspicious
+   one (red outline) decides the case, and a per-image table lists every result. The overlay can
+   switch between pairs, and each full image has its own logged reveal button and hash.
    Choose **Confirm**, **Override** or **Flag**, write a rationale (at least 30 characters), then submit.
    The case becomes read-only and the forensic report (HTML + PDF) is generated.
 4. **Investigator** → *My cases*: after review, view or download the report.
@@ -233,6 +238,13 @@ model (random init) and checks the tensor shapes.
   vectors, 0–2), so all three metrics and S lie in [0, 1]. SSIM is clipped to [0, 1].
 * **ViT input.** The ViT branch internally resizes the 380×380 face to 384×384, because
   patch-16 ViTs need a size divisible by 16.
+* **Multiple images per case.** A case may hold up to 10 suspect and 5 reference images. Each
+  suspect image is compared with every reference image and keeps its **best** match (highest S).
+  The case is **Deepfake if any suspect image** has S < τ; the case-level metrics, label and
+  confidence come from the most suspicious suspect (lowest S). The analyst still makes **one
+  decision per case**, so the HITL workflow, agreement rate and κ are unchanged. Section 3.3
+  (input), the algorithm (loop over all I and R), Appendix B (per-image table) and Appendix C
+  (`suspect_images`, `reference_images`, `suspect_results`, `deciding_suspect`) should mention this.
 * **Classification head** is used only in training. Inference uses the similarity/threshold rule.
 * See the chat summary / PR description for the full list of implementation choices to confirm.
 

@@ -11,7 +11,7 @@
   <tbody>
   {% for c in cases|reverse %}
     <tr>
-      <td class="font-monospace">{{ c.case_id }}</td>
+      <td class="font-monospace">{{ c.case_id }}<div class="small text-muted">{{ case_images(c, 'suspect')|length }} suspect · {{ case_images(c, 'reference')|length }} ref.</div></td>
       <td class="small">{{ c.submitted_at }}</td>
       <td>{{ status_badge(c.status) }}</td>
       <td>{% if c.status == 'pending' %}<span class="text-muted small">Awaiting analyst review</span>{% else %}{{ label_badge(c.final_classification) }}{% endif %}</td>

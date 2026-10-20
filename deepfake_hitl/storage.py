@@ -63,9 +63,42 @@ def case_dir(case_id, upload_dir=None):
     return os.path.join(upload_dir or config.UPLOAD_DIR, case_id)
 
 
-def face_path(case_id, which, upload_dir=None):
+def face_path(case_id, which, upload_dir=None, n=1):
+    """Aligned face crop of the n-th suspect/reference image of a case.
+
+    New cases store ``suspect_1_face.png``, ``suspect_2_face.png``, ...; cases
+    created before multi-image support stored a single ``suspect_face.png``.
+    """
     assert which in ROLES_IMAGES
-    return os.path.join(case_dir(case_id, upload_dir), f"{which}_face.png")
+    folder = case_dir(case_id, upload_dir)
+    path = os.path.join(folder, f"{which}_{int(n)}_face.png")
+    legacy = os.path.join(folder, f"{which}_face.png")
+    if int(n) == 1 and not os.path.exists(path) and os.path.exists(legacy):
+        return legacy
+    return path
+
+
+def case_images(case, which):
+    """List of {n, path, filename, sha256} for a case's suspect or reference images.
+
+    Works for multi-image cases and for older single-image cases.
+    """
+    items = case.get(f"{which}_images")
+    if items:
+        return items
+    return [{"n": 1, "path": case[f"{which}_image"], "filename": os.path.basename(case[f"{which}_image"]),
+             "sha256": case.get(f"{which}_sha256")}]
+
+
+def suspect_result(case, n):
+    """Per-image AI result for suspect image n (falls back to the case-level values)."""
+    for r in case.get("suspect_results") or []:
+        if r["n"] == n:
+            return r
+    return {"n": n, "best_reference": 1, "ai_classification": case["ai_classification"],
+            "confidence_score": case["confidence_score"], "aggregated_score": case["aggregated_score"],
+            "cosine_similarity": case["cosine_similarity"],
+            "euclidean_similarity": case["euclidean_similarity"], "ssim": case["ssim"]}
 
 
 def redact(img, mode="blur", strength=None):

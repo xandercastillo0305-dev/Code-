@@ -27,28 +27,64 @@ app.py::review_case after an analyst acts.
     Line 20    return C, S, D, FR                                  stored in the case record
     Line 21  end procedure
 
-Implementation note: the "for each X in {I, R}" loop (Lines 2-10) is run as
-one batch of two images, which gives the same result as processing them one
-after the other.
+Implementation notes:
+* The "for each X in {I, R}" loop (Lines 2-10) is run as one batch, which gives
+  the same result as processing the images one after the other.
+* A case may contain several suspect images (I_1..I_k) and several reference
+  images (R_1..R_m). Lines 11-16 are evaluated for every suspect against every
+  reference; each suspect keeps its best-matching reference (highest S), and
+  the case is classified by its most suspicious suspect image (lowest S).
 """
+import os
+
 import numpy as np
 import torch
 import torch.nn.functional as F
 
 import config
 from pipeline import classifier, similarity
-from pipeline.preprocessing import FacePreprocessor
+from pipeline.preprocessing import NO_FACE_MESSAGE, FacePreprocessor, NoFaceDetectedError
 
 
 def verify_media(suspect_path, reference_path, tau=None, *, preprocessor=None,
                  model_bundle=None, weights=None):
-    """Run the automated analysis for one case.
+    """One suspect image and one reference image (the original case type).
 
     Returns a dict with every AI field of the case record (Appendix C) plus
-    the aligned face crops (``suspect_face`` / ``reference_face``, PIL) so the
-    caller can store them for the redacted review view.
+    the aligned face crops (``suspect_face`` / ``reference_face``, PIL).
     Raises preprocessing.NoFaceDetectedError if either image has no face.
     """
+    out = verify_case([suspect_path], [reference_path], tau, preprocessor=preprocessor,
+                      model_bundle=model_bundle, weights=weights)
+    out["suspect_face"] = out["suspect_faces"][0]
+    out["reference_face"] = out["reference_faces"][0]
+    return out
+
+
+def _preprocess_all(preprocessor, paths, label):
+    results = []
+    for n, path in enumerate(paths, start=1):
+        try:
+            results.append(preprocessor.process_path(path))
+        except NoFaceDetectedError:
+            # Line 4: no face -> stop; name the image so the investigator can fix it
+            raise NoFaceDetectedError(
+                f"{NO_FACE_MESSAGE} ({label} image {n}: {os.path.basename(path)})")
+    return results
+
+
+def verify_case(suspect_paths, reference_paths, tau=None, *, preprocessor=None,
+                model_bundle=None, weights=None):
+    """Run the automated analysis for a case with one or more images of each kind.
+
+    Every suspect image is compared with every reference image; for each
+    suspect the best-matching reference (highest S) is kept, since an
+    authentic image should match at least one genuine photo of the subject.
+    The case is classified Deepfake if ANY suspect image falls below tau, and
+    the case-level scores are those of the most suspicious image (lowest S).
+    """
+    if not suspect_paths or not reference_paths:
+        raise ValueError("At least one suspect image and one reference image are required.")
     # Line 1: procedure VERIFY_MEDIA(I, R, tau)
     tau = classifier.validate_threshold(config.THRESHOLD_TAU if tau is None else tau)
     weights = similarity.validate_weights(weights or config.METRIC_WEIGHTS)
@@ -57,52 +93,63 @@ def verify_media(suspect_path, reference_path, tau=None, *, preprocessor=None,
         from pipeline.model import get_model_bundle
         model_bundle = get_model_bundle()
 
-    # Line 2: for each X in {I, R}
-    # Line 3: MTCNN detects the largest face
-    # Line 4: no face -> NoFaceDetectedError ("No face detected. Case cannot be analyzed.")
-    # Line 5: align (eyes level), crop with margin, resize to 380x380
-    # Line 6: ImageNet normalisation          (Lines 3-6 are inside process_path)
-    suspect = preprocessor.process_path(suspect_path)       # X = I
-    reference = preprocessor.process_path(reference_path)   # X = R
+    # Line 2: for each X in {I, R}   (here: every suspect and every reference image)
+    # Lines 3-6: MTCNN face detection, no-face stop, align/crop/resize 380x380, normalise
+    suspects = _preprocess_all(preprocessor, suspect_paths, "suspect")
+    references = _preprocess_all(preprocessor, reference_paths, "reference")
 
-    batch = torch.stack([suspect.tensor, reference.tensor])
+    batch = torch.stack([x.tensor for x in suspects + references])
     model = model_bundle.model
     model.eval()
     with torch.no_grad():
         batch = batch.to(model_bundle.device)
         # Line 7: EfficientNet-B4 local features F_1          |  both branches run on the
-        # Line 8: ViT global features F_2 (resized to 384x384) |  same faces (I and R)
+        # Line 8: ViT global features F_2 (resized to 384x384) |  same faces
         f1, f2 = model.branch_features(batch)
-        # Line 9: fusion -> 512-d L2-normalised embeddings I_fused, R_fused   (Line 10: end for)
+        # Line 9: fusion -> 512-d L2-normalised embeddings   (Line 10: end for)
         fused = F.normalize(model.fuse(f1, f2), p=2, dim=1).cpu().numpy()
-    emb_i, emb_r = fused[0], fused[1]
+    emb_s, emb_r = fused[:len(suspects)], fused[len(suspects):]
 
-    # Line 11: cosine similarity, mapped to [0, 1]
-    cos = similarity.cosine_to_unit(similarity.cosine_similarity(emb_i, emb_r))
-    # Line 12: Euclidean distance on the L2-normalised embeddings -> similarity 1 - d/2
-    euc = similarity.euclidean_similarity(emb_i, emb_r)
-    # Line 13: SSIM on the aligned grayscale face crops (SSIM needs 2-D data)
-    ssim = similarity.ssim_score(suspect.face, reference.face)
-    # Line 14: aggregated score S (weighted sum)
-    s = similarity.aggregate_score(cos, euc, ssim, weights)
-    # Line 15: if S >= tau then "Real" else "Deepfake"
-    label = classifier.classify(s, tau)
-    # Line 16: confidence score
-    conf = classifier.confidence(s, tau)
+    per_suspect = []
+    for i, sus in enumerate(suspects):
+        best = None
+        for j, ref in enumerate(references):
+            # Line 11: cosine similarity, mapped to [0, 1]
+            cos = similarity.cosine_to_unit(similarity.cosine_similarity(emb_s[i], emb_r[j]))
+            # Line 12: Euclidean distance on the L2-normalised embeddings -> 1 - d/2
+            euc = similarity.euclidean_similarity(emb_s[i], emb_r[j])
+            # Line 13: SSIM on the aligned grayscale face crops
+            ssim = similarity.ssim_score(sus.face, ref.face)
+            # Line 14: aggregated score S
+            s = similarity.aggregate_score(cos, euc, ssim, weights)
+            if best is None or s > best["aggregated_score"]:
+                best = {"best_reference": j + 1, "cosine_similarity": float(cos),
+                        "euclidean_similarity": float(euc), "ssim": float(ssim),
+                        "aggregated_score": float(s)}
+        # Line 15: if S >= tau then "Real" else "Deepfake";  Line 16: confidence
+        best["n"] = i + 1
+        best["ai_classification"] = classifier.classify(best["aggregated_score"], tau)
+        best["confidence_score"] = float(classifier.confidence(best["aggregated_score"], tau))
+        per_suspect.append(best)
+
+    # Case level: the most suspicious suspect image (lowest S) decides.
+    deciding = min(per_suspect, key=lambda r: r["aggregated_score"])
 
     # Preliminary result -> app.py adds it to the queue as "pending" (Line 17);
     # Lines 18-20 run in app.py::review_case once an analyst reviews it.
     return {
-        "ai_classification": label,
-        "confidence_score": float(conf),
-        "cosine_similarity": float(cos),
-        "euclidean_similarity": float(euc),
-        "ssim": float(ssim),
-        "aggregated_score": float(s),
+        "ai_classification": deciding["ai_classification"],
+        "confidence_score": deciding["confidence_score"],
+        "cosine_similarity": deciding["cosine_similarity"],
+        "euclidean_similarity": deciding["euclidean_similarity"],
+        "ssim": deciding["ssim"],
+        "aggregated_score": deciding["aggregated_score"],
         "threshold": tau,
         "model_version": model_bundle.model_version,
         "model_trained": bool(model_bundle.model_trained),
-        "suspect_face": suspect.face,
-        "reference_face": reference.face,
-        "embedding_dim": int(np.asarray(emb_i).shape[0]),
+        "suspect_results": per_suspect,
+        "deciding_suspect": deciding["n"],
+        "suspect_faces": [x.face for x in suspects],
+        "reference_faces": [x.face for x in references],
+        "embedding_dim": int(np.asarray(emb_s[0]).shape[0]),
     }

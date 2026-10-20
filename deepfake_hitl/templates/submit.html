@@ -1,22 +1,25 @@
 {% extends "base.html" %}{% block title %}Submit case{% endblock %}
 {% block content %}
 <h1 class="h3">Submit a case</h1>
-<p class="text-muted">Upload the suspect image and a reference image of the <b>same adult subject</b>.
+<p class="text-muted">Upload one or more suspect images and one or more reference images of the <b>same adult subject</b>.
+Every suspect image is compared with every reference image; the case is flagged Deepfake if <b>any</b> suspect image scores below the threshold.
 The AI pipeline produces a <b>preliminary</b> classification; a forensic analyst makes the final determination.</p>
 <div class="card shadow-sm"><div class="card-body">
 <form method="post" enctype="multipart/form-data" id="submit-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="row g-4">
+    {% for which, label, limit, help in [
+        ('suspect', 'Suspect images', max_suspect_images, 'The image(s) under examination.'),
+        ('reference', 'Reference images', max_reference_images, 'Known authentic image(s) of the same subject.')] %}
     <div class="col-md-6">
-      <label class="form-label fw-semibold" for="suspect">Suspect image</label>
-      <input class="form-control" type="file" id="suspect" name="suspect" accept=".jpg,.jpeg,.png,image/jpeg,image/png" required>
-      <div class="form-text">The image under examination. JPG or PNG, max {{ max_upload_mb }} MB.</div>
+      <label class="form-label fw-semibold" for="{{ which }}">{{ label }}</label>
+      <input class="form-control multi-file" type="file" id="{{ which }}" name="{{ which }}" multiple
+             data-limit="{{ limit }}" data-label="{{ label|lower }}" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
+      <div class="form-text">{{ help }} Up to {{ limit }} files, JPG or PNG, max {{ max_upload_mb }} MB each.
+        You can choose several at once or click <b>Choose file</b> again to add more.</div>
+      <ul class="file-list" id="{{ which }}-list"></ul>
     </div>
-    <div class="col-md-6">
-      <label class="form-label fw-semibold" for="reference">Reference image</label>
-      <input class="form-control" type="file" id="reference" name="reference" accept=".jpg,.jpeg,.png,image/jpeg,image/png" required>
-      <div class="form-text">A known authentic image of the same subject.</div>
-    </div>
+    {% endfor %}
   </div>
   <div class="form-check mt-4 p-3 ps-5 border rounded bg-light">
     <input class="form-check-input" type="checkbox" value="yes" id="attest" name="attest" required>
@@ -30,7 +33,40 @@ The AI pipeline produces a <b>preliminary</b> classification; a forensic analyst
 {% endblock %}
 {% block scripts %}
 <script>
-document.getElementById('submit-form').addEventListener('submit', function () {
+// Keep every file the user picks (several "Choose file" clicks add up) and let them remove one.
+var picked = {};
+document.querySelectorAll('.multi-file').forEach(function (input) {
+  var dt = new DataTransfer(), list = document.getElementById(input.id + '-list');
+  picked[input.id] = dt;
+  function render() {
+    input.files = dt.files;
+    list.innerHTML = '';
+    Array.from(dt.files).forEach(function (f, i) {
+      var li = document.createElement('li');
+      li.innerHTML = '<span>#' + (i + 1) + ' ' + f.name.replace(/</g, '&lt;') + ' <span class="text-muted">(' + (f.size / 1048576).toFixed(1) + ' MB)</span></span>';
+      var x = document.createElement('button');
+      x.type = 'button'; x.className = 'btn btn-link btn-sm p-0 text-danger'; x.textContent = 'Remove';
+      x.onclick = function () {
+        var keep = new DataTransfer();
+        Array.from(dt.files).forEach(function (g, k) { if (k !== i) keep.items.add(g); });
+        dt = picked[input.id] = keep; render();
+      };
+      li.appendChild(x); list.appendChild(li);
+    });
+  }
+  input.addEventListener('change', function () {
+    var limit = +input.dataset.limit, skipped = 0;
+    Array.from(input.files).forEach(function (f) {
+      if (Array.from(dt.files).some(function (g) { return g.name === f.name && g.size === f.size; })) return;
+      if (dt.files.length < limit) dt.items.add(f); else skipped++;
+    });
+    if (skipped) alert('Only ' + limit + ' ' + input.dataset.label + ' per case; ' + skipped + ' file(s) were not added.');
+    render();
+  });
+});
+document.getElementById('submit-form').addEventListener('submit', function (e) {
+  var missing = Array.from(document.querySelectorAll('.multi-file')).filter(function (i) { return !picked[i.id].files.length; });
+  if (missing.length) { e.preventDefault(); alert('Please choose at least one ' + missing[0].dataset.label.replace(/s$/, '') + '.'); return; }
   document.getElementById('submit-btn').disabled = true;
   document.getElementById('working').classList.remove('d-none');
 });
